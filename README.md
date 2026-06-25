@@ -31,7 +31,7 @@ Four tabs, optimized for daily phone use:
 You need [Node.js](https://nodejs.org) 18+.
 
 ```bash
-git clone https://github.com/crofton3/recovery-app.git
+git clone <your-repo-url>
 cd recovery-app
 npm install
 cp .env.example .env.local   # then fill in your Supabase values (next section)
