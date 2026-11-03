@@ -34,6 +34,7 @@ struct TodayView: View {
         }
         .foregroundStyle(Aurora.text)
         .task { await store.refresh() }
+        .onAppear { Task { await store.refresh() } }
     }
 
     private var header: some View {

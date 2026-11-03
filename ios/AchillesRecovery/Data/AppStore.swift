@@ -15,8 +15,8 @@ final class AppStore {
     var errorMessage: String?
     var loaded = false
 
-    var calories: Int { logs.reduce(0) { $0 + ($1.calories ?? 0) } }
-    var protein: Int { logs.reduce(0) { $0 + ($1.protein ?? 0) } }
+    var calories: Int { FuelMath.totals(logs).calories }
+    var protein: Int { FuelMath.totals(logs).protein }
     var calorieTarget: Int { settings.calorieTarget ?? 2550 }
     var proteinTarget: Int { settings.proteinTarget ?? 190 }
     var waterTarget: Int { settings.waterTargetOz ?? 110 }
@@ -36,13 +36,13 @@ final class AppStore {
             do { return try await work() } catch { errors.append("\(label): \(error.localizedDescription)"); return nil }
         }
 
-        if let s: [UserSettings] = await attempt("settings", { try await API.get("user_settings", query: ["limit": "1"]) }) {
+        if let s: [UserSettings] = await attempt("settings", { try await API.get("user_settings", query: ["order": "created_at", "limit": "1"]) }) {
             settings = s.first ?? UserSettings()
         }
         if let w: [WhoopDaily] = await attempt("whoop", { try await API.get("whoop_daily", query: ["order": "date.desc", "limit": "1"]) }) {
             whoop = w.first
         }
-        if let l: [DailyLog] = await attempt("food", { try await API.get("daily_logs", query: ["date": "eq.\(today)"]) }) {
+        if let l: [DailyLog] = await attempt("food", { try await API.get("daily_logs", query: ["date": "eq.\(today)", "order": "created_at"]) }) {
             logs = l
         }
         if let st: [DailyStatus] = await attempt("water", { try await API.get("daily_status", query: ["date": "eq.\(today)"]) }) {

@@ -5,6 +5,7 @@ struct AchillesRecoveryApp: App {
     @State private var store = AppStore()
     @State private var train = TrainStore()
     @State private var achilles = AchillesStore()
+    @State private var fuel = FuelStore()
 
     init() {
         let appearance = UITabBarAppearance()
@@ -26,6 +27,7 @@ struct AchillesRecoveryApp: App {
                 .environment(store)
                 .environment(train)
                 .environment(achilles)
+                .environment(fuel)
                 .preferredColorScheme(.dark)
         }
     }
@@ -59,7 +61,7 @@ struct RootView: View {
             AchillesView()
                 .tabItem { Label("Achilles", systemImage: "waveform.path.ecg") }
                 .tag(AppTab.achilles)
-            PlaceholderTab(title: "Fuel", note: "Food entry, end-of-day total and targets are next.")
+            FuelView()
                 .tabItem { Label("Fuel", systemImage: "flame.fill") }
                 .tag(AppTab.fuel)
             PlaceholderTab(title: "Trends", note: "WHOOP and body charts are next.")

@@ -54,7 +54,7 @@ final class AchillesStore {
         func attempt<T>(_ label: String, _ work: () async throws -> T) async -> T? {
             do { return try await work() } catch { errors.append("\(label): \(error.localizedDescription)"); return nil }
         }
-        if let s: [UserSettings] = await attempt("settings", { try await API.get("user_settings", query: ["limit": "1"]) }) { settings = s.first ?? UserSettings() }
+        if let s: [UserSettings] = await attempt("settings", { try await API.get("user_settings", query: ["order": "created_at", "limit": "1"]) }) { settings = s.first ?? UserSettings() }
         if let m: [Milestone] = await attempt("milestones", { try await API.get("rehab_milestones", query: ["order": "phase,target_week"]) }) { milestones = m }
         if let d: [AchillesDaily] = await attempt("daily", { try await API.get("achilles_daily", query: ["date": "gte.\(from)", "order": "date"]) }) { daily = d }
         if let r: [RomMeasurement] = await attempt("measurements", { try await API.get("rom_measurements", query: ["order": "date.desc,created_at.desc"]) }) { rom = r }
@@ -71,7 +71,7 @@ final class AchillesStore {
         do {
             if let id = settings.id { try await API.patch("user_settings", id: id, patch) }
             else { try await API.send("POST", "user_settings", body: API.encoder.encode(patch), prefer: "return=minimal") }
-            let s: [UserSettings] = try await API.get("user_settings", query: ["limit": "1"])
+            let s: [UserSettings] = try await API.get("user_settings", query: ["order": "created_at", "limit": "1"])
             settings = s.first ?? settings
             errorMessage = nil
         } catch { errorMessage = error.localizedDescription }
