@@ -6,6 +6,7 @@ struct AchillesRecoveryApp: App {
     @State private var train = TrainStore()
     @State private var achilles = AchillesStore()
     @State private var fuel = FuelStore()
+    @State private var trends = TrendsStore()
 
     init() {
         let appearance = UITabBarAppearance()
@@ -28,6 +29,7 @@ struct AchillesRecoveryApp: App {
                 .environment(train)
                 .environment(achilles)
                 .environment(fuel)
+                .environment(trends)
                 .preferredColorScheme(.dark)
         }
     }
@@ -64,7 +66,7 @@ struct RootView: View {
             FuelView()
                 .tabItem { Label("Fuel", systemImage: "flame.fill") }
                 .tag(AppTab.fuel)
-            PlaceholderTab(title: "Trends", note: "WHOOP and body charts are next.")
+            TrendsView()
                 .tabItem { Label("Trends", systemImage: "chart.line.uptrend.xyaxis") }
                 .tag(AppTab.trends)
         }
