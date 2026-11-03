@@ -1,0 +1,5 @@
+AchillesRecovery/Config/Secrets.swift
+*.xcodeproj
+build/
+DerivedData/
+.DS_Store
