@@ -3,6 +3,8 @@ import Foundation
 // Dates are "yyyy-MM-dd" strings, matching Postgres `date` columns.
 
 struct UserSettings: Codable {
+    var id: String?
+    var rehabPhase: Int?
     var surgeryDate: String?
     var calorieTarget: Int?
     var proteinTarget: Int?
@@ -143,4 +145,65 @@ enum Day {
 
     /// 0 = Sunday, matching schedule_items.weekday.
     static var weekday: Int { Calendar.current.component(.weekday, from: Date()) - 1 }
+}
+
+// MARK: Achilles
+
+struct Milestone: Codable, Identifiable {
+    var id: String
+    var phase: Int
+    var title: String
+    var targetWeek: Int?
+    var doneAt: String?
+}
+
+struct NewMilestone: Encodable {
+    var phase: Int
+    var title: String
+    var targetWeek: Int?
+}
+
+/// Always sends doneAt (null marks the milestone not done).
+struct MilestoneDone: Encodable {
+    var doneAt: String?
+    enum CodingKeys: String, CodingKey { case doneAt }
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(doneAt, forKey: .doneAt)
+    }
+}
+
+struct RomMeasurement: Codable, Identifiable {
+    var id: String
+    var date: String
+    var metric: String
+    var side: String
+    var value: Double
+}
+
+struct NewRom: Encodable {
+    var date: String
+    var metric: String
+    var side: String
+    var value: Double
+}
+
+struct PTSession: Codable, Identifiable {
+    var id: String
+    var date: String
+    var durationMin: Int?
+    var exercises: [String]?
+    var therapistNotes: String?
+}
+
+struct NewPT: Encodable {
+    var date: String
+    var durationMin: Int?
+    var exercises: [String]
+    var therapistNotes: String?
+}
+
+struct SettingsPatch: Encodable {
+    var rehabPhase: Int?
+    var surgeryDate: String?
 }

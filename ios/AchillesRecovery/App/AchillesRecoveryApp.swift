@@ -4,6 +4,7 @@ import SwiftUI
 struct AchillesRecoveryApp: App {
     @State private var store = AppStore()
     @State private var train = TrainStore()
+    @State private var achilles = AchillesStore()
 
     init() {
         let appearance = UITabBarAppearance()
@@ -24,6 +25,7 @@ struct AchillesRecoveryApp: App {
             RootView()
                 .environment(store)
                 .environment(train)
+                .environment(achilles)
                 .preferredColorScheme(.dark)
         }
     }
@@ -54,7 +56,7 @@ struct RootView: View {
             TrainView()
                 .tabItem { Label("Train", systemImage: "dumbbell.fill") }
                 .tag(AppTab.train)
-            PlaceholderTab(title: "Achilles", note: "Phase timeline, milestones, trends and PT log are next.")
+            AchillesView()
                 .tabItem { Label("Achilles", systemImage: "waveform.path.ecg") }
                 .tag(AppTab.achilles)
             PlaceholderTab(title: "Fuel", note: "Food entry, end-of-day total and targets are next.")
