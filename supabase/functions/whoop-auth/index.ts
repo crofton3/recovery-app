@@ -22,8 +22,8 @@ function back(status: string): Response {
 Deno.serve(async (req) => {
   const url = new URL(req.url);
   const action = url.pathname.split("/").filter(Boolean).pop();
-  const clientId = Deno.env.get("WHOOP_CLIENT_ID");
-  const clientSecret = Deno.env.get("WHOOP_CLIENT_SECRET");
+  const clientId = Deno.env.get("WHOOP_CLIENT_ID")?.trim();
+  const clientSecret = Deno.env.get("WHOOP_CLIENT_SECRET")?.trim();
   if (!clientId || !clientSecret) return new Response("WHOOP_CLIENT_ID and WHOOP_CLIENT_SECRET are not set.", { status: 500 });
 
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);

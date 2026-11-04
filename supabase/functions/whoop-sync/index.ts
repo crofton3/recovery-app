@@ -10,8 +10,8 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
 Deno.serve(async (req) => {
-  const clientId = Deno.env.get("WHOOP_CLIENT_ID");
-  const clientSecret = Deno.env.get("WHOOP_CLIENT_SECRET");
+  const clientId = Deno.env.get("WHOOP_CLIENT_ID")?.trim();
+  const clientSecret = Deno.env.get("WHOOP_CLIENT_SECRET")?.trim();
   if (!clientId || !clientSecret) return json({ ok: false, error: "WHOOP secrets are not set." }, 500);
 
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
