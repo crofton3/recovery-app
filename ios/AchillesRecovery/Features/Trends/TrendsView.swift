@@ -63,7 +63,7 @@ private struct ChartCard<Content: View>: View {
     var average: String?
     var tint: Color
     var isEmpty: Bool
-    var footer: String? = nil
+    var footer: String?
     @ViewBuilder var content: () -> Content
 
     var body: some View {
@@ -124,7 +124,8 @@ private struct RecoveryChart: View {
     var body: some View {
         let rows = trends.whoop.filter { $0.recoveryScore != nil }
         let avg = TrendsStore.average(rows.compactMap(\.recoveryScore))
-        ChartCard(title: "Recovery", subtitle: "Daily score", average: avg.map { "\(Int($0.rounded()))%" }, tint: Aurora.recovery, isEmpty: rows.isEmpty, footer: rows.contains(where: { ($0.recoveryScore ?? 0) < 34 }) ? "Coral bars are low days, under 34%." : nil) {
+        let footer = rows.contains(where: { ($0.recoveryScore ?? 0) < 34 }) ? "Coral bars are low days, under 34%." : nil
+        ChartCard(title: "Recovery", subtitle: "Daily score", average: avg.map { "\(Int($0.rounded()))%" }, tint: Aurora.recovery, isEmpty: rows.isEmpty, footer: footer) {
             Chart(rows, id: \.date) { r in
                 BarMark(x: .value("Day", day(r.date), unit: .day), y: .value("Recovery", r.recoveryScore ?? 0))
                     .foregroundStyle((r.recoveryScore ?? 0) < 34 ? Aurora.alert : Aurora.recovery)

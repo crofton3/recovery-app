@@ -28,3 +28,31 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_STYLE: Automatic
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  AchillesRecoveryTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - AchillesRecoveryTests
+    dependencies:
+      - target: AchillesRecovery
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: $(inherited).tests
+        CODE_SIGN_STYLE: Automatic
+schemes:
+  AchillesRecovery:
+    build:
+      targets:
+        AchillesRecovery: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: true
+      coverageTargets:
+        - AchillesRecovery
+      targets:
+        - AchillesRecoveryTests
+    archive:
+      config: Release

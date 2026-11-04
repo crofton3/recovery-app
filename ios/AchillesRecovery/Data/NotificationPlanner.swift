@@ -42,7 +42,7 @@ enum NotificationPlanner {
         }
     }
 
-    private static func parse(_ hhmmss: String) -> (hour: Int, minute: Int)? {
+    static func parse(_ hhmmss: String) -> (hour: Int, minute: Int)? {
         let p = hhmmss.split(separator: ":")
         guard p.count >= 2, let h = Int(p[0]), let m = Int(p[1]) else { return nil }
         return (h, m)

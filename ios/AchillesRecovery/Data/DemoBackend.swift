@@ -150,6 +150,7 @@ final class DemoBackend {
         }
     }
 
+    // swiftlint:disable:next function_body_length
     private func seed() {
         // Exercises
         func ex(_ name: String, _ category: String, _ unit: String) -> String {

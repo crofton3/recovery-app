@@ -1,0 +1,19 @@
+{
+  "lock": false,
+  "fmt": {
+    "lineWidth": 120
+  },
+  "lint": {
+    "rules": {
+      "tags": [
+        "recommended"
+      ],
+      "include": [
+        "no-console",
+        "no-eval",
+        "no-throw-literal",
+        "prefer-ascii"
+      ]
+    }
+  }
+}

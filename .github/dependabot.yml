@@ -1,0 +1,21 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: /docs
+    schedule:
+      interval: weekly
+    groups:
+      docs:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    ignore:
+      # Pinned in package.json overrides: newer zod breaks the Nextra 4.6 build.
+      - dependency-name: zod

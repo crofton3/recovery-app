@@ -24,7 +24,9 @@ Deno.serve(async (req) => {
   const action = url.pathname.split("/").filter(Boolean).pop();
   const clientId = Deno.env.get("WHOOP_CLIENT_ID")?.trim();
   const clientSecret = Deno.env.get("WHOOP_CLIENT_SECRET")?.trim();
-  if (!clientId || !clientSecret) return new Response("WHOOP_CLIENT_ID and WHOOP_CLIENT_SECRET are not set.", { status: 500 });
+  if (!clientId || !clientSecret) {
+    return new Response("WHOOP_CLIENT_ID and WHOOP_CLIENT_SECRET are not set.", { status: 500 });
+  }
 
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const redirectUri = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whoop-auth/callback`;
@@ -33,7 +35,13 @@ Deno.serve(async (req) => {
     const state = randomState();
     const { error } = await db.from("whoop_oauth_state").insert({ state });
     if (error) return new Response(`Could not start sign-in: ${error.message}`, { status: 500 });
-    const q = new URLSearchParams({ response_type: "code", client_id: clientId, redirect_uri: redirectUri, scope: SCOPE, state });
+    const q = new URLSearchParams({
+      response_type: "code",
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      scope: SCOPE,
+      state,
+    });
     return new Response(null, { status: 302, headers: { Location: `${AUTH_URL}?${q}` } });
   }
 
@@ -43,13 +51,20 @@ Deno.serve(async (req) => {
     if (url.searchParams.get("error") || !code || !state) return back("error");
 
     const since = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-    const { data: rows } = await db.from("whoop_oauth_state").delete().eq("state", state).gte("created_at", since).select();
+    const { data: rows } = await db.from("whoop_oauth_state").delete().eq("state", state).gte("created_at", since)
+      .select();
     if (!rows || rows.length === 0) return back("error");
 
     const res = await fetch(TOKEN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ grant_type: "authorization_code", code, client_id: clientId, client_secret: clientSecret, redirect_uri: redirectUri }),
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+      }),
     });
     if (!res.ok) return back("error");
     const t = await res.json();
