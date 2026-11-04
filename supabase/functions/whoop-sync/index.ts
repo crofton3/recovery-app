@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
     // deno-lint-ignore no-explicit-any
     const recoveryByCycle = new Map<number, any>(recoveries.filter((r) => r.score_state === "SCORED").map((r) => [r.cycle_id, r]));
 
-    const rows = cycles.map((c) => {
+    const perCycle = cycles.map((c) => {
       const r = recoveryByCycle.get(c.id);
       const s = r ? sleepById.get(r.sleep_id) : undefined;
       const ss = s?.score?.stage_summary;
@@ -90,6 +90,16 @@ Deno.serve(async (req) => {
         synced_at: new Date().toISOString(),
       };
     });
+
+    // Two cycles can start on the same local date (short sleeps, travel). Merge them: later values win, but never overwrite with null.
+    const byDate = new Map<string, Record<string, unknown>>();
+    // WHOOP returns newest first, so reverse to go oldest to newest before merging.
+    for (const row of [...perCycle].reverse()) {
+      const merged = byDate.get(row.date) ?? {};
+      for (const [k, v] of Object.entries(row)) if (v !== null && v !== undefined) merged[k] = v;
+      byDate.set(row.date, { date: row.date, ...merged });
+    }
+    const rows = [...byDate.values()];
 
     if (rows.length > 0) {
       const { error } = await db.from("whoop_daily").upsert(rows, { onConflict: "date" });
