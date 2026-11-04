@@ -174,6 +174,12 @@ final class TrainStore {
                 let l = last.indices.contains(i) ? last[i] : nil
                 drafts.append(SetDraft(serverId: s.id, weight: Self.format(s.weight), reps: s.reps.map(String.init) ?? "", done: s.done, lastWeight: l?.weight, lastReps: l?.reps))
             }
+            // Restore PR badges when reloading a workout in progress.
+            let scores = drafts.map { $0.done ? Self.score(weight: Double($0.weight), reps: Int($0.reps)) : 0 }
+            for i in drafts.indices where drafts[i].done {
+                let others = scores.enumerated().filter { $0.offset != i }.map(\.element).max() ?? 0
+                drafts[i].isPR = best > 0 && scores[i] > best && scores[i] >= others
+            }
         } else {
             for i in 0..<(plan?.sets ?? max(last.count, 3)) {
                 let exact = last.indices.contains(i) ? last[i] : nil

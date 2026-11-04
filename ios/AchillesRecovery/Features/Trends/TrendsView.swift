@@ -266,11 +266,11 @@ private struct BodyCard: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Waist").font(.system(size: 17, weight: .semibold))
                         if let first = waists.first?.waist, waists.count > 1 {
-                            Text("\(TrainStore.format(first)) in at first check-in").font(.system(size: 13)).foregroundStyle(Aurora.textMuted)
+                            Text("\(TrainStore.format((first * 10).rounded() / 10)) in at first check-in").font(.system(size: 13)).foregroundStyle(Aurora.textMuted)
                         }
                     }
                     Spacer()
-                    Text(TrainStore.format(w)).font(.system(size: 28, weight: .semibold)).monospacedDigit()
+                    Text(TrainStore.format((w * 10).rounded() / 10)).font(.system(size: 28, weight: .semibold)).monospacedDigit()
                     Text("in").font(.system(size: 13)).foregroundStyle(Aurora.textMuted)
                 }
                 .padding(.top, 8)

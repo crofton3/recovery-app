@@ -8,6 +8,7 @@ enum NotificationPlanner {
     static let achillesHour = 20
 
     static func refresh() async {
+        if DemoMode.isOn { return }
         let center = UNUserNotificationCenter.current()
         let granted = (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
         guard granted else { return }

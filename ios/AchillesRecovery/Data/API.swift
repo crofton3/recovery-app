@@ -22,6 +22,7 @@ enum API {
 
     @discardableResult
     static func send(_ method: String, _ table: String, query: [String: String] = [:], body: Data? = nil, prefer: String? = nil) async throws -> Data {
+        if DemoMode.isOn { return DemoBackend.shared.handle(method: method, table: table, query: query, body: body, prefer: prefer) }
         var comps = URLComponents(string: Secrets.supabaseURL + "/rest/v1/" + table)!
         if !query.isEmpty { comps.queryItems = query.sorted { $0.key < $1.key }.map { URLQueryItem(name: $0.key, value: $0.value) } }
         var req = URLRequest(url: comps.url!)
@@ -40,6 +41,7 @@ enum API {
 
     /// Calls a Supabase Edge Function with the anon key.
     static func callFunction(_ name: String, body: [String: Int] = [:]) async throws -> Data {
+        if DemoMode.isOn { return Data(#"{"ok":true,"connected":true,"rows":3}"#.utf8) }
         var req = URLRequest(url: URL(string: Secrets.supabaseURL + "/functions/v1/" + name)!)
         req.httpMethod = "POST"
         req.timeoutInterval = 60

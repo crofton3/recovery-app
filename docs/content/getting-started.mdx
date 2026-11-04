@@ -4,6 +4,16 @@ import { Steps, Callout } from 'nextra/components'
 
 You need a Mac with Xcode 16 or newer, an iPhone on iOS 17 or newer, and a free [Supabase](https://supabase.com) account.
 
+## Just look around first
+
+Demo mode runs the whole app on made-up data held in memory, so you can see every screen without a database or a WHOOP. Nothing is saved when you quit.
+
+1. Do steps 1, 3 and 4 below, using placeholder values in `Secrets.swift`. Demo mode never contacts Supabase.
+2. In Xcode, open Product, Scheme, Edit Scheme, Run, Arguments, and add `-demoMode YES` under Arguments Passed On Launch.
+3. Run it.
+
+## Full setup
+
 <Steps>
 
 ### Clone the repo and install XcodeGen
