@@ -1,0 +1,53 @@
+import { Steps, Callout } from 'nextra/components'
+
+# Getting started
+
+You need a Mac with Xcode 16 or newer, an iPhone on iOS 17 or newer, and a free [Supabase](https://supabase.com) account.
+
+<Steps>
+
+### Clone the repo and install XcodeGen
+
+```bash
+git clone https://github.com/crofton3/recovery-app.git
+cd recovery-app
+brew install xcodegen
+```
+
+### Create the database
+
+Make a new Supabase project, then follow [Supabase setup](/supabase) to run the migrations in order.
+
+### Add your Supabase keys
+
+```bash
+cp ios/AchillesRecovery/Config/Secrets.example.swift.txt ios/AchillesRecovery/Config/Secrets.swift
+```
+
+Open `Secrets.swift` and fill in your project URL and anon key (Supabase dashboard, Project Settings, API). That file is gitignored.
+
+### Add your Apple team
+
+```bash
+cp ios/Local.xcconfig.example ios/Local.xcconfig
+```
+
+Set a bundle ID that's unique to you and your Apple Team ID. A free Apple ID works. `Local.xcconfig` is gitignored.
+
+### Generate the project and run
+
+```bash
+cd ios
+xcodegen generate
+open AchillesRecovery.xcodeproj
+```
+
+Pick your iPhone (or a simulator) and press Run. On a phone, trust your developer certificate under Settings, General, VPN & Device Management.
+
+</Steps>
+
+<Callout type="info">
+  With a free Apple ID the app stops opening after 7 days. Plug the phone in and press Run again. Your data stays in Supabase.
+</Callout>
+
+Next: [connect WHOOP](/whoop) if you wear one. The rest of the app works without it.

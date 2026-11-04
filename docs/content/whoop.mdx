@@ -1,0 +1,48 @@
+import { Steps, Callout } from 'nextra/components'
+
+# Connect WHOOP
+
+WHOOP's login needs a client secret, and that secret must never be on your phone. So the app asks a Supabase Edge Function to do the sign-in and the syncing, and only ever reads the results from your database.
+
+<Steps>
+
+### Create a WHOOP developer app
+
+Go to [developer-dashboard.whoop.com](https://developer-dashboard.whoop.com), create a team, then create an app.
+
+- **Scopes:** `read:recovery`, `read:cycles`, `read:sleep`, `read:profile`
+- **Redirect URL:** `https://<PROJECT_REF>.supabase.co/functions/v1/whoop-auth/callback`
+- A contact email and a privacy policy URL are required. Any real link you own works.
+
+### Deploy the functions
+
+With the [Supabase CLI](https://supabase.com/docs/guides/cli):
+
+```bash
+supabase link --project-ref <PROJECT_REF>
+supabase functions deploy whoop-auth --no-verify-jwt
+supabase functions deploy whoop-sync
+```
+
+`whoop-auth` is public because WHOOP's browser redirect can't send a token. `whoop-sync` requires your anon key.
+
+### Set the secrets
+
+In the Supabase dashboard, open Edge Functions, then Secrets, and add `WHOOP_CLIENT_ID` and `WHOOP_CLIENT_SECRET`.
+
+### Connect from the app
+
+Open Today and tap **Connect WHOOP**. Sign in, approve, and the app pulls your last 30 days.
+
+</Steps>
+
+## How the sync works
+
+- Tokens are stored in `whoop_tokens`, which has no public access. Only the functions can read it.
+- WHOOP rotates the refresh token every time it's used, so the function saves the new one right away.
+- Recovery, HRV, resting heart rate, sleep and strain are merged into one row per day in `whoop_daily`.
+- The app syncs the last 3 days each time it opens. **Sync now** pulls 14.
+
+<Callout type="info">
+  New WHOOP developer apps start in sandbox mode, limited to 10 connected members. That's plenty for one person.
+</Callout>

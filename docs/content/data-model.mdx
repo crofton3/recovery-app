@@ -1,0 +1,27 @@
+# Data model
+
+| Table | Holds |
+|---|---|
+| `user_settings` | Surgery date, rehab phase, injured side, calorie, protein and water targets |
+| `daily_logs` | Foods eaten, with calories and protein |
+| `daily_status` | Water per day |
+| `checkins` | Body weight and waist check-ins |
+| `exercises` | Your exercise library |
+| `schedule_items` | Weekly schedule: day, title, reminder time, and a plan of sets and reps per exercise |
+| `workout_sessions` | A workout you started or finished |
+| `workout_sets` | Each set, with weight, reps and whether it's done |
+| `rehab_milestones` | Milestone checklist by phase |
+| `achilles_daily` | Daily pain and swelling, 0 to 10 |
+| `rom_measurements` | Range of motion and strength by side |
+| `pt_sessions` | Physical therapy log |
+| `whoop_daily` | One row per day of WHOOP data |
+| `whoop_tokens`, `whoop_oauth_state` | WHOOP login state. No public access |
+| `push_devices` | Reserved for future push notifications |
+
+## PR badges
+
+A set gets a PR badge when it beats your earlier best for that exercise. For weighted sets that's the estimated one-rep max (Epley: weight × (1 + reps / 30)). For bodyweight sets it's reps. The first time you log an exercise nothing is flagged.
+
+## End-of-day total
+
+If you save an end-of-day total on the Fuel tab, it's stored as a food named "End-of-day total" and used in place of the individual foods for that day's rings. The foods stay saved.

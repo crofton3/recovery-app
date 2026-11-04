@@ -1,0 +1,31 @@
+import { Callout } from 'nextra/components'
+
+# Supabase setup
+
+All the tables live in `supabase/migrations`. Run the files in filename order, either by pasting each into the SQL Editor or with the Supabase CLI.
+
+| File | What it adds |
+|---|---|
+| `20260101000000_base_schema.sql` | Settings, food log, daily water, check-ins |
+| `20261102000000_recovery_v2.sql` | Training, Achilles, WHOOP and push tables, and starter milestones |
+| `20261103000000_whoop_oauth_state.sql` | A short-lived table for the WHOOP sign-in |
+| `20261103000001_whoop_sync_cron.sql` | Optional: sync WHOOP twice a day |
+| `20261104000000_schedule_plan.sql` | Planned sets and reps on scheduled workouts |
+
+## Settings row
+
+The app reads your settings from `user_settings`. Add one row, or the app falls back to defaults:
+
+```sql
+insert into user_settings (surgery_date, injured_side) values ('2026-01-15', 'L');
+```
+
+Use your own surgery date, and `L` or `R` for the side. You can also set the surgery date from the calendar button on the Achilles tab.
+
+## Optional daily WHOOP sync
+
+`20261103000001_whoop_sync_cron.sql` needs `<PROJECT_REF>` and `<ANON_KEY>` replaced with your own values. It enables `pg_cron` and `pg_net`. Skip it and the app still syncs whenever you open it.
+
+<Callout type="warning">
+  The tables allow the anon key to read and write, because the app has no sign-in. Read [Security](/security) before you store anything you care about.
+</Callout>

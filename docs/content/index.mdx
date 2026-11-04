@@ -1,0 +1,30 @@
+# Achilles
+
+A free iPhone app for tracking recovery from Achilles surgery: rehab phase, milestones, pain and swelling, strength and range of motion, lifting, food, and WHOOP data, all in one place.
+
+It's a personal project. It's built for one person (me) on one iPhone, with no subscription and no accounts.
+
+## What's in it
+
+| Tab | What it does |
+|---|---|
+| Today | WHOOP recovery, strain and sleep rings, calories, protein and water, today's workout, and a daily pain and swelling check. |
+| Train | A session logger with sets, weight and reps, last-time values and PR badges, plus a weekly schedule with planned sets and reps. |
+| Achilles | Rehab phase, milestone checklist, pain and swelling trend, left and right strength and range of motion, and a PT session log. |
+| Fuel | Manual food entry, quick add, an end-of-day total, and daily targets. |
+| Trends | WHOOP recovery, sleep and strain charts, recovery against training days, and body weight and waist. |
+
+## How it fits together
+
+- **iPhone app:** SwiftUI, iOS 17 and up.
+- **Database:** your own free Supabase project (Postgres).
+- **WHOOP:** two Supabase Edge Functions keep your WHOOP login on the server and copy your data into the database.
+- **Reminders:** local notifications on the phone. No push server.
+
+Start with [Getting started](/getting-started).
+
+import { Callout } from 'nextra/components'
+
+<Callout type="warning">
+  This is a personal tracker, not a medical device. Follow your surgeon's and physical therapist's plan. Nothing here is medical advice.
+</Callout>

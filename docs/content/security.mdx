@@ -1,0 +1,24 @@
+import { Callout } from 'nextra/components'
+
+# Security
+
+Read this before you put real health data in.
+
+<Callout type="warning">
+  The tables allow the Supabase anon key to read and write everything, because the app has no sign-in. The anon key is inside the app you install, so anyone who gets it can read and change your data.
+</Callout>
+
+## What's protected
+
+- **WHOOP tokens** are in a table with no public access. Only the Edge Functions can read it.
+- **Your keys** are in two gitignored files, `Secrets.swift` and `Local.xcconfig`. Nothing secret is committed.
+- **The WHOOP client secret** lives only in Supabase secrets.
+
+## What isn't
+
+- Anyone with your Supabase URL and anon key has full access to your food, training and recovery data. Don't publish your build, your `Secrets.swift`, or screenshots that show your project URL.
+- `whoop-auth` is a public URL. Keep your WHOOP app in sandbox mode, where only people you add can connect.
+
+## Hardening it
+
+The right fix is Supabase Auth: add a sign-in to the app, change every policy from `using (true)` to `auth.uid() = user_id`, add a `user_id` column, and stop shipping the anon key as an all-access key. This isn't built yet. Pull requests are welcome.

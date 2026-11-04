@@ -1,0 +1,5 @@
+// Copy to Local.xcconfig and fill in. Local.xcconfig is gitignored.
+// Your bundle ID must be unique to you. Your Team ID is in Xcode under Signing & Capabilities,
+// or at developer.apple.com under Membership details.
+PRODUCT_BUNDLE_IDENTIFIER = com.yourname.AchillesRecovery
+DEVELOPMENT_TEAM = ABCDE12345

@@ -1,0 +1,27 @@
+# Design
+
+The look is called Recovery Aurora: a dark, Apple-style design with activity rings, large numerals and soft glows.
+
+## Colour
+
+| Name | Hex | Used for |
+|---|---|---|
+| Background | `#070B14` | Screens |
+| Card | `#0F1626` | Cards and the tab bar |
+| Text | `#EAF0FF` | Text and numerals |
+| Muted text | `#7B88A8` | Secondary text, 12pt and up |
+| Recovery | `#00F5A0` | WHOOP recovery, primary buttons, done sets |
+| Strain | `#00B4FF` | WHOOP strain, training |
+| Sleep | `#7C5CFF` | Sleep graphics (sleep text uses `#A593FF`) |
+| Nutrition | `#FFB547` | Calories, protein, PR badges |
+| Water | `#4DE8FF` | Water, swelling |
+| Alert | `#FF6B81` | Pain and low days, always with a word |
+
+## Rules
+
+- One colour per metric on every screen.
+- Rings have round caps, a faint track and a glow. They fill with a spring, and Reduce Motion shows them filled.
+- Touch targets are at least 44pt and text is at least 12pt.
+- Status is never colour alone.
+
+The tokens are in `ios/AchillesRecovery/Design/Theme.swift`.

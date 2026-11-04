@@ -1,4 +1,5 @@
 AchillesRecovery/Config/Secrets.swift
+Local.xcconfig
 *.xcodeproj
 build/
 DerivedData/

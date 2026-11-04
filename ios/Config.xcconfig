@@ -1,0 +1,5 @@
+// Defaults. Put your own values in Local.xcconfig (gitignored) so they never get committed.
+PRODUCT_BUNDLE_IDENTIFIER = com.example.AchillesRecovery
+DEVELOPMENT_TEAM =
+
+#include? "Local.xcconfig"

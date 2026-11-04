@@ -1,0 +1,29 @@
+# Troubleshooting
+
+## WHOOP says "The requested OAuth 2.0 Client does not exist"
+
+The client ID is wrong. The most common cause is a hidden newline pasted along with it. The functions trim whitespace, but if it still fails, re-enter both secrets.
+
+## The sync says "ON CONFLICT DO UPDATE command cannot affect row a second time"
+
+You're on an old version of `whoop-sync`. Two WHOOP cycles landed on the same date. Redeploy the function from this repo.
+
+## The app stops opening after a week
+
+That's the free Apple ID limit. Plug the phone in and press Run again.
+
+## "Your team has no devices"
+
+Connect your iPhone with a cable, unlock it, trust the computer, and turn on Developer Mode in Settings, Privacy & Security.
+
+## The app crashed when I finished a workout
+
+Fixed in recent versions. Update and run again.
+
+## My changes to `project.yml` or `Local.xcconfig` do nothing
+
+The Xcode project is generated. Run `xcodegen generate` again after changing either.
+
+## Reminders don't arrive
+
+Allow notifications for the app in iOS Settings, then open the app so it schedules them. Reminders are only scheduled for 14 days ahead.
