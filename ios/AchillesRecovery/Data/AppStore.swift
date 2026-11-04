@@ -25,6 +25,28 @@ final class AppStore {
     var proteinTarget: Int { settings.proteinTarget ?? 190 }
     var waterTarget: Int { settings.waterTargetOz ?? 110 }
 
+    /// Manual strain targets, saved on this device by WHOOP day ("yyyy-MM-dd").
+    private(set) var manualStrainMax: [String: Double] =
+        (UserDefaults.standard.dictionary(forKey: "manualStrainMax") as? [String: Double]) ?? [:]
+
+    private var strainDay: String { whoop?.date ?? Day.string() }
+
+    /// The manual strain target for the WHOOP day on screen, if one is set.
+    var strainMaxOverride: Double? { manualStrainMax[strainDay] }
+
+    /// Today's optimal strain range. The top is the most strain to aim for today.
+    var strainTarget: ClosedRange<Double>? {
+        StrainTarget.range(recovery: whoop?.recoveryScore, manualMax: strainMaxOverride)
+    }
+
+    /// Sets the strain target for the WHOOP day on screen. Nil goes back to the estimate.
+    func setStrainMax(_ value: Double?) {
+        if let value, value > 0 { manualStrainMax[strainDay] = min(value, 21) } else { manualStrainMax[strainDay] = nil }
+        // Keep the last 30 days only.
+        manualStrainMax = Dictionary(uniqueKeysWithValues: manualStrainMax.sorted { $0.key > $1.key }.prefix(30).map { ($0.key, $0.value) })
+        UserDefaults.standard.set(manualStrainMax, forKey: "manualStrainMax")
+    }
+
     /// Weeks since surgery, counting the first week as week 1. Nil until a surgery date is set.
     var weekPostOp: Int? {
         guard let s = settings.surgeryDate, let d = Day.parse(s) else { return nil }
