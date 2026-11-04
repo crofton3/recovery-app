@@ -1,116 +1,48 @@
-# Achilles Recovery + Nutrition Tracker
+# Achilles
 
-A mobile-first recovery dashboard for tracking nutrition, hydration, and rehab
-progress after Achilles surgery. Built with **React + Vite**, **Supabase** for
-cross-device sync, and **Recharts** for trends.
+A free iPhone app for tracking recovery from Achilles surgery, all in one place.
 
-Dark charcoal theme · amber nutrition accents · teal recovery/water accents ·
-rounded cards · iOS-style bottom navigation.
+<p align="center">
+  <img src="docs/public/screenshots/today.png" width="19%" alt="Today: WHOOP rings, nutrition and water" />
+  <img src="docs/public/screenshots/train.png" width="19%" alt="Train: session logger with PR badges" />
+  <img src="docs/public/screenshots/achilles.png" width="19%" alt="Achilles: rehab phase and milestones" />
+  <img src="docs/public/screenshots/fuel.png" width="19%" alt="Fuel: food entry and totals" />
+  <img src="docs/public/screenshots/trends.png" width="19%" alt="Trends: WHOOP charts" />
+</p>
 
-> Single-user personal app. Bring your own free Supabase project (steps below) and
-> it runs at $0. No data or credentials are bundled in this repo.
+<p align="center"><sub>Screenshots use made-up demo data.</sub></p>
 
-## Features
+## Why I made it
 
-Four tabs, optimized for daily phone use:
+After surgery I wanted one spot for everything I was trying to keep track of: where I am in rehab, which milestones I've hit, how my pain and swelling are trending, how strong and mobile each side is, what I lifted, what I ate, and how my body is recovering according to my WHOOP.
 
-- **Today** — Day-N-post-op header, live macro rings/bars (calories, protein,
-  carbs, fat), a planned-meal checklist, water tracker (+8 oz / reset), a collagen
-  toggle, and recovery status chips.
-- **Log** — fast food logging with 12 quick-add presets, a custom-food form, a
-  per-item delete, and a running daily total.
-- **Progress** — bi-weekly check-ins (weight, waist, and 1–5 sliders for energy,
-  PT recovery, hunger, sleep, swelling), weight/waist line charts, an
-  auto-adjustment hint engine, and a check-in history.
-- **Plan** — read-only reference cards: macro targets, recovery supplement stack,
-  return-to-sport nutrition ramp, Sunday batch-prep checklist, budget staples, and
-  daily success rules.
+Every app I looked at did one of those things, or wanted a subscription to do several. I wanted something free that tracks my recovery and milestones together, so I built it.
 
-## Quick start
+## What it does
 
-You need [Node.js](https://nodejs.org) 18+.
+- **Today:** WHOOP recovery, strain and sleep as activity rings, plus calories, protein, water, today's workout and a daily pain and swelling check.
+- **Train:** a session logger with last-time values and PR badges, and a weekly schedule with planned sets and reps.
+- **Achilles:** rehab phase, milestone checklist, pain and swelling trend, left and right strength and range of motion, and a PT log.
+- **Fuel:** quick food entry, an end-of-day total, and daily targets.
+- **Trends:** WHOOP charts, recovery against training days, and body weight and waist.
 
-```bash
-git clone <your-repo-url>
-cd recovery-app
-npm install
-cp .env.example .env.local   # then fill in your Supabase values (next section)
-npm run dev
-```
+It's built for one person on one iPhone. There are no accounts, no ads and no analytics. Your data lives in your own free database.
 
-Open the printed URL on your computer, or the **Network** URL on your phone (same
-Wi-Fi). On iPhone Safari: Share → *Add to Home Screen* for a full-screen app icon.
+## Setup and docs
 
-## Connect your Supabase project
+Everything about setting it up, connecting WHOOP, and how it works is in the docs site in [`docs/`](docs). Start with [Getting started](docs/content/getting-started.mdx).
 
-1. Create a free project at [supabase.com](https://supabase.com) → **New project**.
-2. In the dashboard, open **SQL Editor → New query**, paste the contents of
-   [`supabase_schema.sql`](./supabase_schema.sql), and **Run**. This creates the
-   four tables (`user_settings`, `daily_logs`, `daily_status`, `checkins`),
-   enables Row Level Security, and adds the access policies.
-3. Open **Project Settings → Data API** to copy your **Project URL**, and
-   **Project Settings → API Keys** to copy your **anon / public** key.
-4. Put both in `.env.local`:
+## A few honest notes
 
-   ```
-   VITE_SUPABASE_URL=https://YOUR-PROJECT-REF.supabase.co
-   VITE_SUPABASE_ANON_KEY=your-anon-public-key
-   ```
+- It's a personal project. I use it and fix what breaks, and it may not fit your recovery.
+- It isn't medical advice or a medical device. Follow your surgeon and physical therapist.
+- The database has no sign-in yet. Read the [security notes](docs/content/security.mdx) before storing anything you care about.
+- The rehab phases and milestones are placeholders. Replace them with your own plan.
 
-5. Restart `npm run dev`.
+## Built with
 
-`.env.local` is git-ignored, so your keys never get committed.
-
-## Deploy (free)
-
-Build is a static site (`npm run build` → `/dist`). Host it on **Vercel** or
-**Netlify**:
-
-1. Import this repo (Vercel) or connect it (Netlify). Build command `npm run build`,
-   output directory `dist`.
-2. Add the two environment variables `VITE_SUPABASE_URL` and
-   `VITE_SUPABASE_ANON_KEY` in the host's project settings.
-3. Deploy, then open the URL on your phone → Add to Home Screen.
-
-Because state lives in Supabase, every device you open it on shows the same data.
-
-## Security notes
-
-This is a single-user app with **no login**. The included RLS policies grant the
-`anon` role full read/write access — fine for personal use, but it means anyone who
-obtains your project URL + anon key (which is shipped in any deployed client build)
-could access the data. If you plan to deploy publicly or store anything sensitive,
-add Supabase Auth: enable email auth, add a `user_id` column to each table, and
-replace the permissive policies with `auth.uid()`-scoped ones. The data layer is
-isolated in `src/hooks/useAppData.js`, so this is a contained change.
-
-## Project structure
-
-```
-src/
-  App.jsx                 # tab router + loading / not-connected states
-  index.css               # full dark theme (CSS variables)
-  lib/        supabase.js · date.js (local YYYY-MM-DD) · constants.js
-  hooks/      useAppData.js          # all data loading + mutations
-  context/    ToastContext.jsx       # success / error toasts
-  components/  AppShell, BottomNav, Card, ProgressBar, ProgressRing, Modal, SettingsModal
-    today/    MacroDashboard, MealTimeline, CollagenToggle, WaterTracker, RecoveryChips
-    log/      FoodQuickAdd, CustomFoodForm, LoggedFoodList
-    progress/ CheckinForm, ProgressCharts, AdjustmentHint, PastCheckins
-    plan/     PlanCard
-  tabs/       TodayTab, LogTab, ProgressTab, PlanTab
-```
-
-## Notes on behavior
-
-- Dates are **local**, stored as `YYYY-MM-DD` — your "today" never shifts due to UTC.
-- Today's `daily_status` row is auto-created on first load.
-- Macro totals update instantly; water, collagen, and meal checks save optimistically.
-- The meal timeline is a **planned-meal checklist**, not the calorie log — real
-  macros come from foods logged on the Log tab.
-- The Sunday batch-prep checklist persists locally on the device.
-- Adjustment hints are derived from your last two check-ins.
+SwiftUI and Swift Charts, Supabase, and the WHOOP API.
 
 ## License
 
-MIT — personal project, use freely.
+[MIT](LICENSE)
