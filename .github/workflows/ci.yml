@@ -150,11 +150,8 @@ jobs:
           cache: npm
           cache-dependency-path: docs/package-lock.json
       - run: npm ci
-      # Fails on critical only: Nextra 4.6 needs zod 4.1, which has a high-severity advisory
-      # (GHSA-mrhx-c7xc-m3w5) that only applies to untrusted input. The docs only parse their own config.
-      # New high-severity dependencies are still blocked by the dependency review job.
       - name: Audit dependencies
-        run: npm audit --omit=dev --audit-level=critical
+        run: npm audit --audit-level=low
       - run: npm run build
 
   secrets:
