@@ -1,0 +1,31 @@
+included:
+  - AchillesRecovery
+  - AchillesRecoveryTests
+excluded:
+  - AchillesRecovery/Config/Secrets.swift
+
+disabled_rules:
+  - identifier_name     # short names like i, s, ex are idiomatic here
+  - trailing_comma
+  - statement_position  # `}` then `else` on the next line is used for one-line branches
+
+opt_in_rules:
+  - contains_over_filter_count
+  - contains_over_first_not_nil
+  - empty_count
+  - empty_string
+  - first_where
+  - last_where
+  - redundant_nil_coalescing
+  - sorted_first_last
+  - toggle_bool
+
+line_length:
+  warning: 220
+  error: 260
+  ignores_comments: true
+large_tuple: 4
+function_parameter_count: 7
+type_body_length: 400
+function_body_length: 120
+cyclomatic_complexity: 15

@@ -17,7 +17,10 @@ Deno.serve(async (req) => {
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   let days = 14;
-  try { const b = await req.json(); if (b?.days) days = Math.min(Math.max(Number(b.days), 1), 90); } catch { /* no body */ }
+  try {
+    const b = await req.json();
+    if (b?.days) days = Math.min(Math.max(Number(b.days), 1), 90);
+  } catch { /* no body */ }
 
   const { data: tok } = await db.from("whoop_tokens").select("*").eq("id", 1).maybeSingle();
   if (!tok) return json({ ok: true, connected: false });
@@ -28,14 +31,23 @@ Deno.serve(async (req) => {
     const res = await fetch(TOKEN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: tok.refresh_token, client_id: clientId, client_secret: clientSecret, scope: "offline" }),
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: tok.refresh_token,
+        client_id: clientId,
+        client_secret: clientSecret,
+        scope: "offline",
+      }),
     });
     if (!res.ok) return json({ ok: true, connected: false, reason: "refresh_failed" });
     const t = await res.json();
     access = t.access_token;
     await db.from("whoop_tokens").upsert({
-      id: 1, access_token: t.access_token, refresh_token: t.refresh_token ?? tok.refresh_token,
-      expires_at: new Date(Date.now() + (t.expires_in ?? 3600) * 1000).toISOString(), updated_at: new Date().toISOString(),
+      id: 1,
+      access_token: t.access_token,
+      refresh_token: t.refresh_token ?? tok.refresh_token,
+      expires_at: new Date(Date.now() + (t.expires_in ?? 3600) * 1000).toISOString(),
+      updated_at: new Date().toISOString(),
     });
   }
 
@@ -69,15 +81,22 @@ Deno.serve(async (req) => {
     };
 
     // deno-lint-ignore no-explicit-any
-    const sleepById = new Map<string, any>(sleeps.filter((s) => !s.nap && s.score_state === "SCORED").map((s) => [s.id, s]));
+    const sleepById = new Map<string, any>(
+      sleeps.filter((s) => !s.nap && s.score_state === "SCORED").map((s) => [s.id, s]),
+    );
     // deno-lint-ignore no-explicit-any
-    const recoveryByCycle = new Map<number, any>(recoveries.filter((r) => r.score_state === "SCORED").map((r) => [r.cycle_id, r]));
+    const recoveryByCycle = new Map<number, any>(
+      recoveries.filter((r) => r.score_state === "SCORED").map((r) => [r.cycle_id, r]),
+    );
 
     const perCycle = cycles.map((c) => {
       const r = recoveryByCycle.get(c.id);
       const s = r ? sleepById.get(r.sleep_id) : undefined;
       const ss = s?.score?.stage_summary;
-      const asleepMs = ss ? (ss.total_light_sleep_time_milli ?? 0) + (ss.total_slow_wave_sleep_time_milli ?? 0) + (ss.total_rem_sleep_time_milli ?? 0) : null;
+      const asleepMs = ss
+        ? (ss.total_light_sleep_time_milli ?? 0) + (ss.total_slow_wave_sleep_time_milli ?? 0) +
+          (ss.total_rem_sleep_time_milli ?? 0)
+        : null;
       return {
         date: localDate(c.start, c.timezone_offset),
         recovery_score: r?.score?.recovery_score ?? null,
