@@ -14,6 +14,10 @@ final class AppStore {
     var achillesLogged = false
     var errorMessage: String?
     var loaded = false
+    var whoopConnected: Bool?
+    var whoopMessage: String?
+    var syncing = false
+    private let connector = WhoopConnector()
 
     var calories: Int { FuelMath.totals(logs).calories }
     var protein: Int { FuelMath.totals(logs).protein }
@@ -75,6 +79,46 @@ final class AppStore {
         } catch {
             waterOz = previous
             errorMessage = error.localizedDescription
+        }
+    }
+
+    // MARK: WHOOP
+
+    private struct SyncResult: Decodable {
+        var ok: Bool
+        var connected: Bool?
+        var rows: Int?
+        var error: String?
+    }
+
+    /// Pulls fresh WHOOP data through the server. `quiet` skips messages (used on launch).
+    func syncWhoop(days: Int = 14, quiet: Bool = false) async {
+        syncing = true
+        defer { syncing = false }
+        do {
+            let data = try await API.callFunction("whoop-sync", body: ["days": days])
+            let r = try JSONDecoder().decode(SyncResult.self, from: data)
+            if r.ok, r.connected == true {
+                whoopConnected = true
+                whoopMessage = nil
+                await refresh()
+            } else if r.ok {
+                whoopConnected = false
+                if !quiet { whoopMessage = "WHOOP isn't connected yet." }
+            } else if !quiet {
+                whoopMessage = r.error ?? "WHOOP sync failed."
+            }
+        } catch {
+            if !quiet { whoopMessage = error.localizedDescription }
+        }
+    }
+
+    func connectWhoop() async {
+        whoopMessage = nil
+        if await connector.connect() {
+            await syncWhoop(days: 30)
+        } else {
+            whoopMessage = "WHOOP sign-in didn't finish. Check the WHOOP app setup, then try again."
         }
     }
 }

@@ -38,6 +38,18 @@ enum API {
         return data
     }
 
+    /// Calls a Supabase Edge Function with the anon key.
+    static func callFunction(_ name: String, body: [String: Int] = [:]) async throws -> Data {
+        var req = URLRequest(url: URL(string: Secrets.supabaseURL + "/functions/v1/" + name)!)
+        req.httpMethod = "POST"
+        req.timeoutInterval = 60
+        req.setValue("Bearer " + Secrets.supabaseAnonKey, forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (data, _) = try await URLSession.shared.data(for: req)
+        return data
+    }
+
     static func get<T: Decodable>(_ table: String, query: [String: String] = [:], as type: T.Type = T.self) async throws -> [T] {
         let data = try await send("GET", table, query: query)
         return try decoder.decode([T].self, from: data)

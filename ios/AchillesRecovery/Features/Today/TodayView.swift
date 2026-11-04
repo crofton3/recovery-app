@@ -33,7 +33,10 @@ struct TodayView: View {
             .refreshable { await store.refresh() }
         }
         .foregroundStyle(Aurora.text)
-        .task { await store.refresh() }
+        .task {
+            await store.refresh()
+            await store.syncWhoop(days: 3, quiet: true)
+        }
         .onAppear { Task { await store.refresh() } }
     }
 
@@ -65,7 +68,7 @@ private struct WhoopCard: View {
             HStack {
                 Text("WHOOP").caption()
                 Spacer()
-                if w == nil { Chip(text: "Not connected", tint: Aurora.nutrition) }
+                if store.whoopConnected != true && w == nil { Chip(text: "Not connected", tint: Aurora.nutrition) }
             }
             RingCluster(rings: [
                 RingSpec(value: recovery, color: Aurora.recovery, label: "Recovery", display: w?.recoveryScore.map { "\(Int($0)) percent" } ?? "no data"),
@@ -85,9 +88,21 @@ private struct WhoopCard: View {
                 stat("Strain", w?.strain.map { String(format: "%.1f", $0) }, sub: "of 21", color: Aurora.strain)
                 stat("Sleep", w?.sleepPerformance.map { "\(Int($0))%" }, sub: w?.sleepHours.map { hoursText($0) } ?? "", color: Aurora.sleepInk)
             }
-            if w == nil {
-                Text("No WHOOP data yet. Connecting WHOOP comes in a later step.")
-                    .font(.system(size: 13)).foregroundStyle(Aurora.textMuted)
+            if w == nil && store.whoopConnected != true {
+                Button(store.syncing ? "Connecting..." : "Connect WHOOP") { Task { await store.connectWhoop() } }
+                    .buttonStyle(PrimaryButtonStyle())
+                    .disabled(store.syncing)
+            } else {
+                Button(store.syncing ? "Syncing..." : "Sync now") { Task { await store.syncWhoop(days: 14) } }
+                    .buttonStyle(SecondaryButtonStyle())
+                    .disabled(store.syncing)
+                if w == nil {
+                    Text("Connected. No WHOOP data yet. Pull your first sync above.")
+                        .font(.system(size: 13)).foregroundStyle(Aurora.textMuted)
+                }
+            }
+            if let message = store.whoopMessage {
+                Text(message).font(.system(size: 13)).foregroundStyle(Aurora.alert)
             }
         }
         .auroraCard()
