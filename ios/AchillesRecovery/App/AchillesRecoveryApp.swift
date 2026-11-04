@@ -51,6 +51,7 @@ enum AppTab: Hashable {
 
 struct RootView: View {
     @State private var tab: AppTab = .today
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         TabView(selection: $tab) {
@@ -71,6 +72,10 @@ struct RootView: View {
                 .tag(AppTab.trends)
         }
         .tint(tab.tint)
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await NotificationPlanner.refresh() } }
+        }
+        .task { await NotificationPlanner.refresh() }
         .animation(Aurora.base, value: tab)
     }
 }

@@ -67,6 +67,7 @@ final class AppStore {
             try await API.upsert("achilles_daily", AchillesDaily(date: Day.string(), pain: pain, swelling: swelling, notes: nil), onConflict: "date")
             achillesLogged = true
             errorMessage = nil
+            Task { await NotificationPlanner.refresh() }
         } catch { errorMessage = error.localizedDescription }
     }
 

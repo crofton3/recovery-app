@@ -27,6 +27,8 @@ struct AchillesView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 24)
+                .opacity(store.loaded ? 1 : 0)
+                .animation(Aurora.base, value: store.loaded)
             }
             .refreshable { await store.load() }
         }

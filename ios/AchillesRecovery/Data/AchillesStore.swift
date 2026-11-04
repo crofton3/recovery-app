@@ -37,6 +37,7 @@ final class AchillesStore {
     var rom: [RomMeasurement] = []
     var pt: [PTSession] = []
     var errorMessage: String?
+    var loaded = false
 
     var injured: String { settings.injuredSide ?? "L" }
     var healthy: String { injured == "L" ? "R" : "L" }
@@ -60,6 +61,7 @@ final class AchillesStore {
         if let r: [RomMeasurement] = await attempt("measurements", { try await API.get("rom_measurements", query: ["order": "date.desc,created_at.desc"]) }) { rom = r }
         if let p: [PTSession] = await attempt("pt", { try await API.get("pt_sessions", query: ["order": "date.desc", "limit": "20"]) }) { pt = p }
         errorMessage = errors.first
+        loaded = true
     }
 
     // MARK: Settings

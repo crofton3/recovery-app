@@ -80,6 +80,7 @@ final class TrainStore {
             self.session = nil
             blocks = []
             errorMessage = nil
+            Task { await NotificationPlanner.refresh() }
         } catch { errorMessage = error.localizedDescription }
     }
 
@@ -186,6 +187,7 @@ final class TrainStore {
             else { _ = try await API.insert("schedule_items", body, as: ScheduleItem.self) }
             weekSchedule = try await API.get("schedule_items", query: ["order": "weekday,reminder_time"])
             errorMessage = nil
+            Task { await NotificationPlanner.refresh() }
         } catch { errorMessage = error.localizedDescription }
     }
 
@@ -194,6 +196,7 @@ final class TrainStore {
             try await API.delete("schedule_items", id: id)
             weekSchedule.removeAll { $0.id == id }
             errorMessage = nil
+            Task { await NotificationPlanner.refresh() }
         } catch { errorMessage = error.localizedDescription }
     }
 }
