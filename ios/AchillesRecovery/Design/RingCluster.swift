@@ -7,7 +7,7 @@ struct RingSpec: Identifiable {
     var label: String
     var display: String
     /// Optional target band on the track, as fractions of the ring (0...1).
-    var band: ClosedRange<Double>? = nil
+    var band: ClosedRange<Double>?
 }
 
 /// Concentric activity rings, outermost first. The arc fills with a spring; reduced motion shows it instantly.
