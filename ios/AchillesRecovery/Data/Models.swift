@@ -42,12 +42,25 @@ struct WhoopDaily: Codable {
     var strain: Double?
 }
 
+struct PlanEntry: Codable, Hashable {
+    var exerciseId: String
+    var sets: Int
+    var reps: Int
+}
+
 struct ScheduleItem: Codable, Identifiable {
     var id: String
     var weekday: Int
     var title: String
     var exerciseIds: [String]?
+    var plan: [PlanEntry]?
     var reminderTime: String?
+
+    /// Exercises in order, with planned sets and reps where the plan has them.
+    var entries: [(exerciseId: String, plan: PlanEntry?)] {
+        if let plan, !plan.isEmpty { return plan.map { ($0.exerciseId, $0) } }
+        return (exerciseIds ?? []).map { ($0, nil) }
+    }
 }
 
 struct Exercise: Codable, Identifiable, Hashable {
@@ -114,14 +127,16 @@ struct ScheduleWrite: Encodable {
     var weekday: Int
     var title: String
     var exerciseIds: [String]
+    var plan: [PlanEntry]
     var reminderTime: String?
 
-    enum CodingKeys: String, CodingKey { case weekday, title, exerciseIds, reminderTime }
+    enum CodingKeys: String, CodingKey { case weekday, title, exerciseIds, plan, reminderTime }
     func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(weekday, forKey: .weekday)
         try c.encode(title, forKey: .title)
         try c.encode(exerciseIds, forKey: .exerciseIds)
+        try c.encode(plan, forKey: .plan)
         try c.encode(reminderTime, forKey: .reminderTime)
     }
 }

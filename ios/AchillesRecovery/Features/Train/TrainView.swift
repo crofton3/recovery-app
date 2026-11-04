@@ -140,6 +140,9 @@ private struct ExerciseCard: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(block.exercise.name).font(.system(size: 17, weight: .semibold))
+                        if let p = block.plan {
+                            Text("Plan: \(p.sets) sets × \(p.reps) reps").font(.system(size: 13)).foregroundStyle(Aurora.strain)
+                        }
                         if block.priorBest > 0 {
                             Text("Beat your last sessions to earn a PR").font(.system(size: 13)).foregroundStyle(Aurora.textMuted)
                         } else {
@@ -151,7 +154,7 @@ private struct ExerciseCard: View {
                 }
                 VStack(spacing: 8) {
                     ForEach(Array(block.sets.enumerated()), id: \.element.id) { si, set in
-                        SetRowView(draft: $train.blocks[bi].sets[si], number: si + 1, unit: block.exercise.unit) {
+                        SetRowView(draft: train.binding(exerciseId: exerciseId, setId: set.id, fallback: set), number: si + 1, unit: block.exercise.unit) {
                             Task { await train.toggleDone(exerciseId: exerciseId, setId: set.id) }
                         }
                     }

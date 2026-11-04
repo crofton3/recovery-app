@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import SwiftUI
 
 @MainActor
 @Observable
@@ -21,6 +22,7 @@ final class TrainStore {
         var sets: [SetDraft]
         /// Best score from earlier sessions. Zero means no history, so nothing is flagged as a PR.
         var priorBest: Double
+        var plan: PlanEntry?
     }
 
     var exercises: [Exercise] = []
@@ -54,6 +56,18 @@ final class TrainStore {
         blocks = rebuilt
     }
 
+    /// A binding that survives the block being removed (finishing a workout clears blocks while rows are still on screen).
+    func binding(exerciseId: String, setId: UUID, fallback: SetDraft) -> Binding<SetDraft> {
+        Binding(
+            get: { [self] in blocks.first { $0.id == exerciseId }?.sets.first { $0.id == setId } ?? fallback },
+            set: { [self] new in
+                if let bi = blocks.firstIndex(where: { $0.id == exerciseId }), let si = blocks[bi].sets.firstIndex(where: { $0.id == setId }) {
+                    blocks[bi].sets[si] = new
+                }
+            }
+        )
+    }
+
     // MARK: Session
 
     func startSession(from item: ScheduleItem?) async {
@@ -61,8 +75,10 @@ final class TrainStore {
             let new = NewSession(date: Day.string(), title: item?.title ?? "Workout", scheduleItemId: item?.id, startedAt: ISO8601DateFormatter().string(from: Date()))
             session = try await API.insert("workout_sessions", new, as: WorkoutSession.self)
             blocks = []
-            for id in item?.exerciseIds ?? [] {
-                if let ex = exercises.first(where: { $0.id == id }) { blocks.append(await buildBlock(ex, existing: [])) }
+            for entry in item?.entries ?? [] {
+                if let ex = exercises.first(where: { $0.id == entry.exerciseId }) {
+                    blocks.append(await buildBlock(ex, existing: [], plan: entry.plan))
+                }
             }
             errorMessage = nil
         } catch { errorMessage = error.localizedDescription }
@@ -145,7 +161,7 @@ final class TrainStore {
         return v.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(v)) : String(v)
     }
 
-    private func buildBlock(_ ex: Exercise, existing: [WorkoutSet]) async -> ExerciseBlock {
+    private func buildBlock(_ ex: Exercise, existing: [WorkoutSet], plan: PlanEntry? = nil) async -> ExerciseBlock {
         let history: [WorkoutSet] = (try? await API.get("workout_sets", query: ["exercise_id": "eq.\(ex.id)", "done": "eq.true", "order": "created_at.desc", "limit": "300"])) ?? []
         let prior = history.filter { $0.sessionId != session?.id }
         let best = prior.map { Self.score(weight: $0.weight, reps: $0.reps) }.max() ?? 0
@@ -159,13 +175,14 @@ final class TrainStore {
                 drafts.append(SetDraft(serverId: s.id, weight: Self.format(s.weight), reps: s.reps.map(String.init) ?? "", done: s.done, lastWeight: l?.weight, lastReps: l?.reps))
             }
         } else {
-            for i in 0..<max(last.count, 3) {
+            for i in 0..<(plan?.sets ?? max(last.count, 3)) {
                 let exact = last.indices.contains(i) ? last[i] : nil
                 let source = exact ?? last.last
-                drafts.append(SetDraft(weight: Self.format(source?.weight), reps: source?.reps.map(String.init) ?? "", done: false, lastWeight: exact?.weight, lastReps: exact?.reps))
+                let reps = plan.map { String($0.reps) } ?? source?.reps.map(String.init) ?? ""
+                drafts.append(SetDraft(weight: Self.format(source?.weight), reps: reps, done: false, lastWeight: exact?.weight, lastReps: exact?.reps))
             }
         }
-        return ExerciseBlock(exercise: ex, sets: drafts, priorBest: best)
+        return ExerciseBlock(exercise: ex, sets: drafts, priorBest: best, plan: plan)
     }
 
     // MARK: Library and schedule
@@ -180,8 +197,8 @@ final class TrainStore {
         } catch { errorMessage = error.localizedDescription; return nil }
     }
 
-    func saveScheduleItem(id: String?, weekday: Int, title: String, exerciseIds: [String], reminderTime: String?) async {
-        let body = ScheduleWrite(weekday: weekday, title: title, exerciseIds: exerciseIds, reminderTime: reminderTime)
+    func saveScheduleItem(id: String?, weekday: Int, title: String, plan: [PlanEntry], reminderTime: String?) async {
+        let body = ScheduleWrite(weekday: weekday, title: title, exerciseIds: plan.map(\.exerciseId), plan: plan, reminderTime: reminderTime)
         do {
             if let id { try await API.patch("schedule_items", id: id, body) }
             else { _ = try await API.insert("schedule_items", body, as: ScheduleItem.self) }

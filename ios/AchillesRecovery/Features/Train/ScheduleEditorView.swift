@@ -27,6 +27,14 @@ struct ScheduleEditorView: View {
         }
     }
 
+    private func summary(_ item: ScheduleItem) -> String {
+        let parts = item.entries.map { e -> String in
+            let name = train.exercises.first(where: { $0.id == e.exerciseId })?.name ?? "Exercise"
+            return e.plan.map { "\(name) \($0.sets)×\($0.reps)" } ?? name
+        }
+        return parts.isEmpty ? "No exercises yet" : parts.joined(separator: " · ")
+    }
+
     private func dayCard(_ weekday: Int) -> some View {
         let items = train.weekSchedule.filter { $0.weekday == weekday }
         let isToday = weekday == Day.weekday
@@ -49,7 +57,7 @@ struct ScheduleEditorView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item.title).font(.system(size: 17, weight: .semibold)).foregroundStyle(Aurora.text)
-                            Text("\(item.exerciseIds?.count ?? 0) exercises").font(.system(size: 13)).foregroundStyle(Aurora.textMuted)
+                            Text(summary(item)).font(.system(size: 13)).foregroundStyle(Aurora.textMuted).lineLimit(2).multilineTextAlignment(.leading)
                         }
                         Spacer()
                         Text(item.reminderTime.map { timeLabel($0) } ?? "No reminder")
@@ -84,7 +92,7 @@ struct ScheduleItemSheet: View {
     @State private var title = ""
     @State private var remind = true
     @State private var time = Calendar.current.date(from: DateComponents(hour: 18, minute: 30)) ?? Date()
-    @State private var exerciseIds: [String] = []
+    @State private var plan: [PlanEntry] = []
     @State private var choosing = false
 
     var body: some View {
@@ -95,13 +103,23 @@ struct ScheduleItemSheet: View {
                     Toggle("Remind me", isOn: $remind)
                     if remind { DatePicker("Time", selection: $time, displayedComponents: .hourAndMinute) }
                 }
-                Section("Exercises, in order") {
-                    ForEach(exerciseIds, id: \.self) { id in
-                        Text(train.exercises.first(where: { $0.id == id })?.name ?? "Unknown exercise")
+                Section {
+                    ForEach($plan, id: \.exerciseId) { $entry in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(train.exercises.first(where: { $0.id == entry.exerciseId })?.name ?? "Unknown exercise")
+                                .font(.headline)
+                            Stepper("Sets: \(entry.sets)", value: $entry.sets, in: 1...10)
+                            Stepper("Reps: \(entry.reps)", value: $entry.reps, in: 1...60)
+                        }
+                        .padding(.vertical, 4)
                     }
-                    .onDelete { exerciseIds.remove(atOffsets: $0) }
-                    .onMove { exerciseIds.move(fromOffsets: $0, toOffset: $1) }
+                    .onDelete { plan.remove(atOffsets: $0) }
+                    .onMove { plan.move(fromOffsets: $0, toOffset: $1) }
                     Button("Choose exercises") { choosing = true }
+                } header: {
+                    Text("Exercises, in order")
+                } footer: {
+                    Text("Swipe left to remove, or tap Edit to reorder. Sets and reps are your targets. Weights come from your last session.")
                 }
                 if let item {
                     Section {
@@ -124,8 +142,9 @@ struct ScheduleItemSheet: View {
             }
             .sheet(isPresented: $choosing) {
                 NavigationStack {
-                    ExerciseList(selected: Set(exerciseIds)) { ex in
-                        if let i = exerciseIds.firstIndex(of: ex.id) { exerciseIds.remove(at: i) } else { exerciseIds.append(ex.id) }
+                    ExerciseList(selected: Set(plan.map(\.exerciseId))) { ex in
+                        if let i = plan.firstIndex(where: { $0.exerciseId == ex.id }) { plan.remove(at: i) }
+                        else { plan.append(PlanEntry(exerciseId: ex.id, sets: 3, reps: 10)) }
                     }
                     .navigationTitle("Choose exercises")
                     .navigationBarTitleDisplayMode(.inline)
@@ -138,7 +157,7 @@ struct ScheduleItemSheet: View {
         .onAppear {
             guard let item else { return }
             title = item.title
-            exerciseIds = item.exerciseIds ?? []
+            plan = item.entries.map { $0.plan ?? PlanEntry(exerciseId: $0.exerciseId, sets: 3, reps: 10) }
             if let t = item.reminderTime {
                 let p = t.split(separator: ":")
                 if p.count >= 2, let h = Int(p[0]), let m = Int(p[1]) {
@@ -152,7 +171,7 @@ struct ScheduleItemSheet: View {
         let c = Calendar.current.dateComponents([.hour, .minute], from: time)
         let reminder = remind ? String(format: "%02d:%02d:00", c.hour ?? 18, c.minute ?? 30) : nil
         Task {
-            await train.saveScheduleItem(id: item?.id, weekday: weekday, title: title.trimmingCharacters(in: .whitespaces), exerciseIds: exerciseIds, reminderTime: reminder)
+            await train.saveScheduleItem(id: item?.id, weekday: weekday, title: title.trimmingCharacters(in: .whitespaces), plan: plan, reminderTime: reminder)
             dismiss()
         }
     }
