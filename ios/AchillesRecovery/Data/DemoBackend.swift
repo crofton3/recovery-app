@@ -114,9 +114,11 @@ final class DemoBackend {
     private func str(_ v: Any?) -> String {
         switch v {
         case let s as String: return s
-        case let b as Bool: return b ? "true" : "false"
-        case let i as Int: return String(i)
-        case let d as Double: return d.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(d)) : String(d)
+        // JSON numbers arrive as NSNumber, where 0 and 1 also cast to Bool. Only real booleans should become "true"/"false".
+        case let n as NSNumber where CFGetTypeID(n) == CFBooleanGetTypeID(): return n.boolValue ? "true" : "false"
+        case let n as NSNumber:
+            let d = n.doubleValue
+            return d.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(d)) : String(d)
         default: return ""
         }
     }

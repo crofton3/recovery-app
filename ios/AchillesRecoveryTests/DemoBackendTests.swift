@@ -46,6 +46,14 @@ struct DemoBackendTests {
         #expect(try get(["select": "k"]).allSatisfy { $0.keys.sorted() == ["k"] })
     }
 
+    /// Regression: JSON 0 and 1 used to compare as false and true, so `set_no=eq.1` missed rows the app inserted.
+    @Test func numbersFromJsonAreNotBooleans() throws {
+        try insert([["set_no": 1, "done": true], ["set_no": 2, "done": false], ["set_no": 0, "done": true]])
+        #expect(try get(["set_no": "eq.1"]).count == 1)
+        #expect(try get(["set_no": "eq.0"]).count == 1)
+        #expect(try get(["done": "eq.true"]).count == 2)
+    }
+
     @Test func upsertMergesOnConflict() throws {
         try insert([["date": "2026-02-01", "water_oz": 10]])
         try insert([["date": "2026-02-01", "water_oz": 40]], query: ["on_conflict": "date"])
