@@ -104,3 +104,29 @@ struct MathTests {
         #expect(TrendsStore.average([2, 4, 9]) == 5)
     }
 }
+
+struct StrainTargetTests {
+    @Test func estimateScalesWithRecovery() {
+        #expect(StrainTarget.estimatedMax(recovery: 0) == 8)
+        #expect(StrainTarget.estimatedMax(recovery: 72) == 15.2)
+        #expect(StrainTarget.estimatedMax(recovery: 100) == 18)
+        #expect(StrainTarget.estimatedMax(recovery: 140) == 18)
+    }
+
+    @Test func rangeIsTwoStrainWideBelowTheMax() throws {
+        let r = try #require(StrainTarget.range(recovery: 72))
+        #expect(r.upperBound == 15.2)
+        #expect(abs(r.lowerBound - 13.2) < 0.0001)
+    }
+
+    @Test func manualMaxReplacesTheEstimate() throws {
+        let r = try #require(StrainTarget.range(recovery: 72, manualMax: 15))
+        #expect(r == 13...15)
+        #expect(StrainTarget.range(recovery: 72, manualMax: 30)?.upperBound == 21)
+    }
+
+    @Test func noRecoveryAndNoManualMaxMeansNoTarget() {
+        #expect(StrainTarget.range(recovery: nil) == nil)
+        #expect(StrainTarget.range(recovery: nil, manualMax: 14)?.upperBound == 14)
+    }
+}
