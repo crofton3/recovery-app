@@ -35,8 +35,14 @@ struct AchillesRecoveryApp: App {
     }
 }
 
-enum AppTab: Hashable {
+enum AppTab: String, Hashable {
     case today, train, achilles, fuel, trends
+
+    /// Demo mode only: the launch argument `-startTab train` opens on that tab, so screenshots can be scripted.
+    static var initial: AppTab {
+        guard DemoMode.isOn, let raw = UserDefaults.standard.string(forKey: "startTab") else { return .today }
+        return AppTab(rawValue: raw) ?? .today
+    }
 
     var tint: Color {
         switch self {
@@ -50,7 +56,7 @@ enum AppTab: Hashable {
 }
 
 struct RootView: View {
-    @State private var tab: AppTab = .today
+    @State private var tab: AppTab = .initial
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
