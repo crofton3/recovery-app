@@ -11,6 +11,9 @@ import Observation
 final class RunTracker: NSObject {
     enum Phase { case idle, locating, running, paused, finished }
 
+    /// Seconds. An older first fix is ignored.
+    static let maxFirstFixAge: TimeInterval = 10
+
     private(set) var phase: Phase = .idle
     private(set) var engine = RunEngine(plan: RunPlan())
     /// Accuracy of the latest fix in metres. Nil until the first fix.
@@ -119,18 +122,21 @@ final class RunTracker: NSObject {
     private func handle(_ samples: [GPSFilter.Sample]) {
         for s in samples {
             accuracy = s.accuracy
+            let fixTime = Date(timeIntervalSinceReferenceDate: s.time)
             switch phase {
             case .locating:
-                guard filter.accept(s) != nil else { continue }
-                startedAt = Date()
-                resumedAt = startedAt
+                // The first fix iOS hands over can be a cached one from minutes ago and somewhere else.
+                guard Date().timeIntervalSince(fixTime) <= Self.maxFirstFixAge, filter.accept(s) != nil else { continue }
+                startedAt = fixTime
+                resumedAt = fixTime
                 route.append(point(s))
                 phase = .running
                 announce(.run(round: 1))
             case .running:
                 guard let meters = filter.accept(s) else { continue }
                 route.append(point(s))
-                for event in engine.advance(meters: meters, elapsed: elapsed()) { announce(event) }
+                // Fixes can arrive several at once, so each one is timed by when it was taken, not when it was delivered.
+                for event in engine.advance(meters: meters, elapsed: elapsed(at: fixTime)) { announce(event) }
             case .idle, .paused, .finished:
                 break
             }

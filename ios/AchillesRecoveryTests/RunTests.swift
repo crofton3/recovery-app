@@ -16,7 +16,9 @@ struct RunEngineTests {
         #expect(engine.advance(meters: 0.095 * mile, elapsed: 240) == [.run(round: 2)])
         #expect(engine.round == 2)
         #expect(engine.completed.map(\.kind) == [.run, .walk])
-        #expect(engine.completed.map(\.seconds) == [180, 60])
+        // Each boundary is timed by how far into the update it fell, not by when the update arrived.
+        #expect(abs(engine.completed[0].seconds - 175) < 0.01)
+        #expect(abs(engine.completed[1].seconds - (60 * 0.09 / 0.095 + 5)) < 0.01)
     }
 
     @Test func finishesThePlanThenCoolsDown() {
@@ -39,6 +41,21 @@ struct RunEngineTests {
     @Test func oneBigJumpCanCrossSeveralIntervals() {
         var engine = RunEngine(plan: RunPlan(runMiles: 0.05, walkMiles: 0.05, rounds: 2))
         #expect(engine.advance(meters: 0.16 * mile, elapsed: 100) == [.walk, .run(round: 2), .walk])
+        // The 100 seconds are shared out by distance: 0.05 of 0.16 miles each.
+        #expect(engine.completed.allSatisfy { abs($0.seconds - 31.25) < 0.01 })
+        #expect(abs(engine.segmentSeconds(elapsed: 100) - 6.25) < 0.01)
+    }
+
+    @Test func timeIsNotLostOrDoubleCountedAcrossUpdates() {
+        var engine = RunEngine(plan: RunPlan(runMiles: 0.1, walkMiles: 0.05, rounds: 3))
+        var elapsed = 0.0
+        for step in 1...200 {
+            elapsed += step.isMultiple(of: 7) ? 9 : 1  // an occasional GPS gap
+            _ = engine.advance(meters: step.isMultiple(of: 7) ? 31 : 3.3, elapsed: elapsed)
+        }
+        let total = engine.segments(elapsed: elapsed).reduce(0) { $0 + $1.seconds }
+        #expect(abs(total - elapsed) < 0.001)
+        #expect(engine.completed.allSatisfy { $0.seconds > 0 })
     }
 
     @Test func progressAndRemainingTrackTheCurrentInterval() {
@@ -150,11 +167,13 @@ struct RunStoreTests {
     @Test func savesListsAndDeletesInDemoMode() async throws {
         UserDefaults.standard.set(true, forKey: "demoMode")
         defer { UserDefaults.standard.removeObject(forKey: "demoMode") }
-        let store = RunStore(pendingURL: FileManager.default.temporaryDirectory.appending(path: "pending-\(UUID().uuidString).json"))
+        let url = FileManager.default.temporaryDirectory.appending(path: "pending-\(UUID().uuidString).json")
+        let store = RunStore(pendingURL: url)
         var run = RunRecord.make(plan: RunPlan(), segments: [RunSegment(kind: .run, meters: 482, seconds: 180)], route: [[1, 2], [3, 4]], startedAt: Date(), elapsed: 180)
         run.pain = 2
         await store.save(run)
         #expect(store.pending.isEmpty)
+        #expect(!FileManager.default.fileExists(atPath: url.path))
         await store.load()
         let saved = try #require(store.all.first { $0.id == run.id })
         #expect(saved.pain == 2)

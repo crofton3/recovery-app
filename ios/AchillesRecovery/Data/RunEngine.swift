@@ -38,6 +38,8 @@ struct RunEngine {
     private(set) var segmentMeters = 0.0
     private(set) var totalMeters = 0.0
     private var segmentStart: TimeInterval = 0
+    /// Active seconds at the previous update.
+    private var lastElapsed: TimeInterval = 0
 
     init(plan: RunPlan) { self.plan = plan }
 
@@ -57,14 +59,20 @@ struct RunEngine {
     func segmentSeconds(elapsed: TimeInterval) -> TimeInterval { max(elapsed - segmentStart, 0) }
 
     /// Adds distance covered. `elapsed` is active seconds since the run began. Returns the interval changes it caused.
+    /// When an update crosses an interval boundary, its time is shared out by distance, so the carried
+    /// distance gets its part of the time instead of the finished interval taking all of it.
     mutating func advance(meters: Double, elapsed: TimeInterval) -> [Event] {
         var events: [Event] = []
+        let from = lastElapsed
+        let span = max(elapsed - from, 0)
+        lastElapsed = from + span
         totalMeters += meters
         segmentMeters += meters
         while let target, segmentMeters >= target {
             let carry = segmentMeters - target
-            completed.append(RunSegment(kind: kind, meters: target, seconds: segmentSeconds(elapsed: elapsed)))
-            segmentStart = elapsed
+            let crossedAt = meters > 0 ? from + span * min(max((meters - carry) / meters, 0), 1) : lastElapsed
+            completed.append(RunSegment(kind: kind, meters: target, seconds: max(crossedAt - segmentStart, 0)))
+            segmentStart = crossedAt
             segmentMeters = carry
             if kind == .run && plan.walkMeters > 0 {
                 kind = .walk

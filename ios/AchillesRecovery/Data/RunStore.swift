@@ -93,8 +93,10 @@ final class RunStore {
         loaded = true
     }
 
-    /// Saves a run. If the network is down it is kept on the phone and sent the next time the app loads runs.
+    /// Saves a run. It is written to the phone first, so it survives the app being closed mid-upload,
+    /// and is sent again the next time the app loads runs if the network is down.
     func save(_ run: RunRecord) async {
+        setPending(pending.filter { $0.id != run.id } + [run])
         do {
             try await API.upsert("runs", run, onConflict: "id")
             runs.removeAll { $0.id == run.id }
@@ -103,7 +105,6 @@ final class RunStore {
             setPending(pending.filter { $0.id != run.id })
             errorMessage = nil
         } catch {
-            setPending(pending.filter { $0.id != run.id } + [run])
             errorMessage = "Saved on this phone. It will sync when you are back online."
         }
     }
