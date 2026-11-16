@@ -130,6 +130,7 @@ struct WorkoutActivityStateTests {
         #expect(state.exerciseNumber == 2)
         #expect(state.exerciseCount == 3)
         #expect(state.setNumber == 2)
+        #expect(state.setId == blocks[1].sets[1].id)
         #expect(state.setCount == 3)
         #expect(state.target == "190 lb x 8")
         #expect(state.last == "185 x 8")
@@ -171,7 +172,7 @@ struct WorkoutActivityStateTests {
 
 extension TrainStoreTests {
     /// The lock screen check button: marks the next set done and tells the Live Activity.
-    @Test func completeNextSetMarksTheSetOnTheLockScreen() async throws {
+    @Test func completeSetMarksTheSetOnTheLockScreen() async throws {
         defer { UserDefaults.standard.removeObject(forKey: "demoMode") }
         let store = TrainStore()
         var states: [WorkoutActivityAttributes.ContentState] = []
@@ -187,10 +188,12 @@ extension TrainStoreTests {
         let set = try #require(block.sets.first { !$0.done })
         store.binding(exerciseId: block.id, setId: set.id, fallback: set).wrappedValue.reps = "8"
         let before = try #require(states.last)
+        let sessionId = try #require(store.session?.id)
+        let displayedSetId = try #require(before.setId)
         #expect(before.exerciseName == block.exercise.name)
         #expect(before.canComplete)
 
-        await store.completeNextSet()
+        await store.completeSet(sessionId: sessionId, setId: displayedSetId)
         #expect(store.errorMessage == nil)
         #expect(store.blocks.first { $0.id == block.id }?.sets.first { $0.id == set.id }?.done == true)
         #expect(states.last?.doneSets == before.doneSets + 1)
@@ -198,5 +201,51 @@ extension TrainStoreTests {
         // The demo data is shared with the other tests in this suite, so put the set back.
         await store.toggleDone(exerciseId: block.id, setId: set.id)
         #expect(states.last?.doneSets == before.doneSets)
+    }
+
+    @Test func coldStartRestoresDraftsAndOnlyCompletesTheDisplayedSet() async throws {
+        let folder = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        let draftURL = folder.appending(path: "workout-drafts.json")
+        defer {
+            try? FileManager.default.removeItem(at: folder)
+            UserDefaults.standard.removeObject(forKey: "demoMode")
+        }
+
+        let initial = TrainStore(draftURL: draftURL)
+        initial.exercises = try await API.get("exercises")
+        let schedule: [ScheduleItem] = try await API.get("schedule_items")
+        let plan = try #require(schedule.first { $0.plan?.first.map { $0.sets >= 3 } == true })
+        await initial.startSession(from: plan)
+        let sessionId = try #require(initial.session?.id)
+        let first = try #require(initial.blocks.first)
+        let extra = try #require(initial.exercises.first { exercise in !initial.blocks.contains { $0.id == exercise.id } })
+        await initial.addExercise(extra)
+        initial.addSet(to: first.id)
+        initial.binding(exerciseId: first.id, setId: first.sets[1].id, fallback: first.sets[1]).wrappedValue.reps = "13"
+        await initial.toggleDone(exerciseId: first.id, setId: first.sets[0].id)
+        let displayed = WorkoutActivityAttributes.ContentState.make(blocks: initial.blocks)
+        let setId = try #require(displayed.setId)
+        let draftsBeforeTap = try Data(contentsOf: draftURL)
+        #expect(setId == first.sets[1].id)
+
+        let relaunched = TrainStore(draftURL: draftURL)
+        await relaunched.completeSet(sessionId: "another-workout", setId: setId)
+        #expect(WorkoutActivityAttributes.ContentState.make(blocks: relaunched.blocks) == displayed)
+        #expect(relaunched.blocks.map(\.id) == initial.blocks.map(\.id))
+
+        async let firstTap: Void = relaunched.completeSet(sessionId: sessionId, setId: setId)
+        async let secondTap: Void = relaunched.completeSet(sessionId: sessionId, setId: setId)
+        _ = await (firstTap, secondTap)
+        let next = WorkoutActivityAttributes.ContentState.make(blocks: relaunched.blocks)
+        #expect(next.doneSets == displayed.doneSets + 1)
+        #expect(next.setId == first.sets[2].id)
+        #expect(relaunched.blocks[0].sets[1].reps == "13")
+
+        // Reopen with the snapshot from before the save, as if the process exited after the server accepted it.
+        try draftsBeforeTap.write(to: draftURL, options: .atomic)
+        let reopened = TrainStore(draftURL: draftURL)
+        await reopened.completeSet(sessionId: sessionId, setId: setId)
+        #expect(WorkoutActivityAttributes.ContentState.make(blocks: reopened.blocks) == next)
+        await reopened.finish()
     }
 }

@@ -113,6 +113,7 @@ struct WorkoutActivityAttributes: ActivityAttributes {
         var marks: [[Mark]]
         /// False until the next set has a weight or reps, because a set cannot be saved empty.
         var canComplete: Bool
+        var setId: UUID?
 
         var totalSets: Int { marks.reduce(0) { $0 + $1.count } }
         var doneSets: Int { marks.reduce(0) { $0 + $1.filter { $0 != .pending }.count } }
@@ -123,6 +124,7 @@ struct WorkoutActivityAttributes: ActivityAttributes {
 
     var title: String
     var startedAt: Date
+    var sessionId: String?
 }
 
 // MARK: Lock screen buttons
@@ -131,7 +133,7 @@ struct WorkoutActivityAttributes: ActivityAttributes {
 @MainActor
 enum LiveActivityBridge {
     static var resumeRun: (() -> Void)?
-    static var completeSet: (() async -> Void)?
+    static var completeSet: ((String, UUID) async -> Void)?
 }
 
 struct ResumeRunIntent: LiveActivityIntent {
@@ -147,9 +149,21 @@ struct ResumeRunIntent: LiveActivityIntent {
 struct CompleteSetIntent: LiveActivityIntent {
     static let title: LocalizedStringResource = "Mark set done"
 
+    @Parameter(title: "Workout") var sessionId: String?
+    @Parameter(title: "Set") var setId: String?
+
+    init() {}
+
+    init(sessionId: String, setId: UUID) {
+        self.sessionId = sessionId
+        self.setId = setId.uuidString
+    }
+
     @MainActor
     func perform() async throws -> some IntentResult {
-        await LiveActivityBridge.completeSet?()
+        if let sessionId, let setId, let id = UUID(uuidString: setId) {
+            await LiveActivityBridge.completeSet?(sessionId, id)
+        }
         return .result()
     }
 }

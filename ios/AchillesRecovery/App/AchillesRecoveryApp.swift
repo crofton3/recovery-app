@@ -37,7 +37,7 @@ struct AchillesRecoveryApp: App {
         tracker.onLiveChange = { live.syncRun(plan: $0.engine.plan, state: $0.activityState) }
         train.onLiveChange = { live.syncWorkout(session: $0.session, blocks: $0.blocks) }
         LiveActivityBridge.resumeRun = { tracker.resume() }
-        LiveActivityBridge.completeSet = { await train.completeNextSet() }
+        LiveActivityBridge.completeSet = { await train.completeSet(sessionId: $0, setId: $1) }
     }
 
     var body: some Scene {

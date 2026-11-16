@@ -50,18 +50,23 @@ final class LiveActivityController {
             lastWorkout = nil
             return
         }
+        // Reconnect to this session after a relaunch and retire activities for other sessions or older app versions.
+        if workout?.attributes.sessionId != session.id {
+            let activities = Activity<WorkoutActivityAttributes>.activities
+            workout = activities.first { $0.attributes.sessionId == session.id }
+            for activity in activities where activity.id != workout?.id { end(activity) }
+            lastWorkout = nil
+        }
         let state = WorkoutActivityAttributes.ContentState.make(blocks: blocks)
         guard state != lastWorkout else { return }
-        lastWorkout = state
-        // After a relaunch, pick the workout's activity back up instead of starting a second one.
-        if workout == nil { workout = Activity<WorkoutActivityAttributes>.activities.first { $0.attributes.title == session.title } }
         if let workout {
             enqueue { await workout.update(ActivityContent(state: state, staleDate: nil)) }
         } else if ActivityAuthorizationInfo().areActivitiesEnabled {
             let started = session.startedAt.flatMap { ISO8601DateFormatter().date(from: $0) } ?? Date()
-            let attributes = WorkoutActivityAttributes(title: session.title, startedAt: started)
+            let attributes = WorkoutActivityAttributes(title: session.title, startedAt: started, sessionId: session.id)
             workout = try? Activity.request(attributes: attributes, content: ActivityContent(state: state, staleDate: nil))
         }
+        if workout != nil { lastWorkout = state }
     }
 
     // MARK: Plumbing
@@ -105,7 +110,8 @@ extension WorkoutActivityAttributes.ContentState {
             last: set.lastWeight == nil && set.lastReps == nil ? nil
                 : describe(weight: TrainStore.format(set.lastWeight), reps: set.lastReps.map(String.init) ?? "", unit: unit, withUnit: false),
             marks: marks,
-            canComplete: Double(set.weight) != nil || Int(set.reps) != nil
+            canComplete: Double(set.weight) != nil || Int(set.reps) != nil,
+            setId: set.id
         )
     }
 

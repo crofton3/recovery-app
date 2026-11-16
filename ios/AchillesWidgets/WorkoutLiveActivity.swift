@@ -5,7 +5,9 @@ import WidgetKit
 struct WorkoutLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: WorkoutActivityAttributes.self) { context in
-            WorkoutLockScreenView(title: context.attributes.title, startedAt: context.attributes.startedAt, state: context.state)
+            WorkoutLockScreenView(
+                title: context.attributes.title, startedAt: context.attributes.startedAt, sessionId: context.attributes.sessionId, state: context.state
+            )
                 .padding(.horizontal, 18).padding(.vertical, 14)
                 .activityBackgroundTint(Glass.card)
                 .activitySystemActionForegroundColor(Aurora.text)
@@ -33,7 +35,7 @@ struct WorkoutLiveActivity: Widget {
                         HStack(spacing: 12) {
                             WorkoutNow(state: state, nameSize: 22, showLast: false)
                             Spacer(minLength: 8)
-                            if state.canComplete { CompleteSetButton(setNumber: state.setNumber, size: 48) }
+                            CompleteSetButton(sessionId: context.attributes.sessionId, state: state, size: 48)
                         }
                         WorkoutProgress(state: state)
                     }
@@ -126,19 +128,22 @@ struct WorkoutNow: View {
 
 /// Glossy check button. Marks the set shown as done without unlocking the phone.
 struct CompleteSetButton: View {
-    var setNumber: Int
+    var sessionId: String?
+    var state: WorkoutActivityAttributes.ContentState
     var size: CGFloat = 56
 
     var body: some View {
-        Button(intent: CompleteSetIntent()) {
-            Image(systemName: "checkmark")
-                .font(.system(size: size * 0.4, weight: .heavy))
-                .foregroundStyle(Aurora.onAccent)
-                .frame(width: size, height: size)
-                .background(Glossy(shape: Circle(), tint: Aurora.recovery))
+        if state.canComplete, let sessionId, let setId = state.setId {
+            Button(intent: CompleteSetIntent(sessionId: sessionId, setId: setId)) {
+                Image(systemName: "checkmark")
+                    .font(.system(size: size * 0.4, weight: .heavy))
+                    .foregroundStyle(Aurora.onAccent)
+                    .frame(width: size, height: size)
+                    .background(Glossy(shape: Circle(), tint: Aurora.recovery))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Mark set \(state.setNumber) done")
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Mark set \(setNumber) done")
     }
 }
 
@@ -205,6 +210,7 @@ struct WorkoutProgress: View {
 struct WorkoutLockScreenView: View {
     var title: String
     var startedAt: Date
+    var sessionId: String?
     var state: WorkoutActivityAttributes.ContentState
 
     var body: some View {
@@ -227,7 +233,7 @@ struct WorkoutLockScreenView: View {
             HStack(alignment: .center, spacing: 12) {
                 WorkoutNow(state: state)
                 Spacer(minLength: 8)
-                if state.canComplete { CompleteSetButton(setNumber: state.setNumber) }
+                CompleteSetButton(sessionId: sessionId, state: state)
             }
             WorkoutProgress(state: state)
         }
