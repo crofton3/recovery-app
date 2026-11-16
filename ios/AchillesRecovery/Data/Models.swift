@@ -222,3 +222,28 @@ struct SettingsPatch: Encodable {
     var rehabPhase: Int?
     var surgeryDate: String?
 }
+
+/// Daily strain target, like WHOOP's Strain Coach optimal range.
+/// WHOOP's API doesn't expose its target, so the range is estimated from recovery:
+/// the top runs from 8 strain at 0% recovery to 18 at 100%, and the range is 2 strain wide.
+/// A manual top value (copied from the WHOOP app) replaces the estimate.
+enum StrainTarget {
+    static let width = 2.0
+
+    static func estimatedMax(recovery: Double) -> Double {
+        let r = min(max(recovery, 0), 100)
+        return ((8 + r * 0.10) * 10).rounded() / 10
+    }
+
+    static func range(recovery: Double?, manualMax: Double? = nil) -> ClosedRange<Double>? {
+        let top: Double
+        if let manualMax, manualMax > 0 {
+            top = min(manualMax, 21)
+        } else if let recovery {
+            top = estimatedMax(recovery: recovery)
+        } else {
+            return nil
+        }
+        return max(top - width, 0)...top
+    }
+}

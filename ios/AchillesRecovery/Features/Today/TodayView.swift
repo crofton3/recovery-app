@@ -58,11 +58,18 @@ struct TodayView: View {
 
 private struct WhoopCard: View {
     @Environment(AppStore.self) private var store
+    @State private var editingTarget = false
+    @State private var targetText = ""
 
     var body: some View {
         let w = store.whoop
         let recovery = (w?.recoveryScore ?? 0) / 100
-        let strain = (w?.strain ?? 0) / 21
+        let target = store.strainTarget
+        let strainMax = target?.upperBound ?? 21
+        // The strain ring fills toward today's target, not toward 21.
+        let strain = (w?.strain ?? 0) / strainMax
+        let band = target.map { ($0.lowerBound / strainMax)...1 }
+        let over = (w?.strain ?? 0) > strainMax
         let sleep = (w?.sleepPerformance ?? 0) / 100
         VStack(spacing: 16) {
             HStack {
@@ -72,7 +79,7 @@ private struct WhoopCard: View {
             }
             RingCluster(rings: [
                 RingSpec(value: recovery, color: Aurora.recovery, label: "Recovery", display: w?.recoveryScore.map { "\(Int($0)) percent" } ?? "no data"),
-                RingSpec(value: strain, color: Aurora.strain, label: "Strain", display: w?.strain.map { String(format: "%.1f of 21", $0) } ?? "no data"),
+                RingSpec(value: strain, color: Aurora.strain, label: "Strain", display: w?.strain.map { String(format: "%.1f of %.1f target", $0, strainMax) } ?? "no data", band: band),
                 RingSpec(value: sleep, color: Aurora.sleep, label: "Sleep", display: w?.sleepPerformance.map { "\(Int($0)) percent" } ?? "no data"),
             ], size: 248, stroke: 16, gap: 5) {
                 VStack(spacing: 2) {
@@ -85,7 +92,16 @@ private struct WhoopCard: View {
             }
             HStack {
                 stat("Recovery", w?.recoveryScore.map { "\(Int($0))%" }, sub: w?.hrv.map { "HRV \(Int($0)) ms" } ?? "", color: Aurora.recovery)
-                stat("Strain", w?.strain.map { String(format: "%.1f", $0) }, sub: "of 21", color: Aurora.strain)
+                Button {
+                    targetText = store.strainMaxOverride.map { String(format: "%.1f", $0) } ?? ""
+                    editingTarget = true
+                } label: {
+                    stat("Strain", w?.strain.map { String(format: "%.1f", $0) },
+                         sub: over ? String(format: "over %.1f", strainMax) : String(format: "of %.1f", strainMax),
+                         color: Aurora.strain, subColor: over ? Aurora.alert : Aurora.textMuted)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Sets today's strain target")
                 stat("Sleep", w?.sleepPerformance.map { "\(Int($0))%" }, sub: w?.sleepHours.map { hoursText($0) } ?? "", color: Aurora.sleepInk)
             }
             if w == nil && store.whoopConnected != true {
@@ -106,16 +122,27 @@ private struct WhoopCard: View {
             }
         }
         .auroraCard()
+        .alert("Today's strain target", isPresented: $editingTarget) {
+            TextField(String(format: "%.1f", StrainTarget.estimatedMax(recovery: w?.recoveryScore ?? 0)), text: $targetText)
+                .keyboardType(.decimalPad)
+            Button("Save") { store.setStrainMax(Double(targetText.replacingOccurrences(of: ",", with: "."))) }
+            if store.strainMaxOverride != nil {
+                Button("Use estimate", role: .destructive) { store.setStrainMax(nil) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Enter the top of the optimal strain range from the WHOOP app. Leave it blank to use the estimate from your recovery.")
+        }
     }
 
-    private func stat(_ label: String, _ value: String?, sub: String, color: Color) -> some View {
+    private func stat(_ label: String, _ value: String?, sub: String, color: Color, subColor: Color = Aurora.textMuted) -> some View {
         VStack(spacing: 2) {
             HStack(spacing: 6) {
                 Circle().fill(color).frame(width: 8, height: 8)
                 Text(label).caption()
             }
             Text(value ?? "--").font(.system(size: 28, weight: .semibold)).monospacedDigit()
-            Text(sub).font(.system(size: 13)).foregroundStyle(Aurora.textMuted)
+            Text(sub).font(.system(size: 13)).foregroundStyle(subColor)
         }
         .frame(maxWidth: .infinity)
     }

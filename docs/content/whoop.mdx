@@ -43,6 +43,12 @@ Open Today and tap **Connect WHOOP**. Sign in, approve, and the app pulls your l
 - Recovery, HRV, resting heart rate, sleep and strain are merged into one row per day in `whoop_daily`.
 - The app syncs the last 3 days each time it opens. **Sync now** pulls 14.
 
+## Strain target
+
+The strain ring on Today fills toward your strain target for the day, not toward 21. The lighter band on the ring is the optimal range, so the ring is nearly full once you're inside it.
+
+WHOOP's API doesn't share the Strain Coach target, so the app estimates it from recovery: the top of the range goes from 8 at 0% recovery to 18 at 100%, and the range is 2 strain wide. To match WHOOP exactly, tap **Strain** under the rings and enter the top of the optimal range from the WHOOP app. That number is saved on your phone for that day.
+
 <Callout type="info">
   New WHOOP developer apps start in sandbox mode, limited to 10 connected members. That's plenty for one person.
 </Callout>

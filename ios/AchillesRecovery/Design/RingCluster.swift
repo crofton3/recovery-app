@@ -6,6 +6,8 @@ struct RingSpec: Identifiable {
     var color: Color
     var label: String
     var display: String
+    /// Optional target band on the track, as fractions of the ring (0...1).
+    var band: ClosedRange<Double>?
 }
 
 /// Concentric activity rings, outermost first. The arc fills with a spring; reduced motion shows it instantly.
@@ -27,6 +29,13 @@ struct RingCluster<Center: View>: View {
                     Circle()
                         .stroke(ring.color.opacity(0.16), lineWidth: stroke)
                         .frame(width: diameter, height: diameter)
+                    if let band = ring.band {
+                        Circle()
+                            .trim(from: min(max(band.lowerBound, 0), 1), to: min(max(band.upperBound, 0), 1))
+                            .stroke(Color.white.opacity(0.22), style: StrokeStyle(lineWidth: stroke, lineCap: .butt))
+                            .frame(width: diameter, height: diameter)
+                            .rotationEffect(.degrees(-90))
+                    }
                     Circle()
                         .trim(from: 0, to: min(max(ring.value, 0), 1) * progress)
                         .stroke(ring.color, style: StrokeStyle(lineWidth: stroke, lineCap: .round))
