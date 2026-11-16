@@ -7,6 +7,8 @@ struct AchillesRecoveryApp: App {
     @State private var achilles = AchillesStore()
     @State private var fuel = FuelStore()
     @State private var trends = TrendsStore()
+    @State private var runs = RunStore()
+    @State private var runTracker = RunTracker()
 
     init() {
         let appearance = UITabBarAppearance()
@@ -30,6 +32,8 @@ struct AchillesRecoveryApp: App {
                 .environment(achilles)
                 .environment(fuel)
                 .environment(trends)
+                .environment(runs)
+                .environment(runTracker)
                 .preferredColorScheme(.dark)
         }
     }

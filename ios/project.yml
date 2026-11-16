@@ -20,6 +20,10 @@ targets:
         CFBundleDisplayName: Achilles
         UILaunchScreen: {}
         UIUserInterfaceStyle: Dark
+        NSLocationWhenInUseUsageDescription: Your location is used to measure distance and pace while you track a run.
+        UIBackgroundModes:
+          - location
+          - audio
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
     settings:
