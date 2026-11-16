@@ -14,12 +14,16 @@ targets:
     platform: iOS
     sources:
       - AchillesRecovery
+      - Shared
+    dependencies:
+      - target: AchillesWidgets
     info:
       path: AchillesRecovery/Info.plist
       properties:
         CFBundleDisplayName: Achilles
         UILaunchScreen: {}
         UIUserInterfaceStyle: Dark
+        NSSupportsLiveActivities: true
         NSLocationWhenInUseUsageDescription: Your location is used to measure distance and pace while you track a run.
         UIBackgroundModes:
           - location
@@ -32,6 +36,28 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_STYLE: Automatic
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  # Lock screen Live Activities and the Dynamic Island.
+  AchillesWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - AchillesWidgets
+      - Shared
+      - path: AchillesRecovery/Data/RunEngine.swift
+      - path: AchillesRecovery/Design/Theme.swift
+    info:
+      path: AchillesWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: Achilles
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(inherited).widgets
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_STYLE: Automatic
+        SKIP_INSTALL: YES
   AchillesRecoveryTests:
     type: bundle.unit-test
     platform: iOS

@@ -108,6 +108,7 @@ struct WorkoutSet: Codable, Identifiable {
 }
 
 struct NewSet: Encodable {
+    var id: String
     var sessionId: String
     var exerciseId: String
     var setNo: Int
