@@ -10,6 +10,7 @@
 | `schedule_items` | Weekly schedule: day, title, reminder time, and a plan of sets and reps per exercise |
 | `workout_sessions` | A workout you started or finished |
 | `workout_sets` | Each set, with weight, reps and whether it's done |
+| `runs` | GPS-tracked runs: distance, time, run and walk intervals, pain, and the route |
 | `rehab_milestones` | Milestone checklist by phase |
 | `achilles_daily` | Daily pain and swelling, 0 to 10 |
 | `rom_measurements` | Range of motion and strength by side |
@@ -21,6 +22,17 @@
 ## PR badges
 
 A set gets a PR badge when it beats your earlier best for that exercise. For weighted sets that's the estimated one-rep max (Epley: weight × (1 + reps / 30)). For bodyweight sets it's reps. The first time you log an exercise nothing is flagged.
+
+## Run tracking
+
+The Run section of the Train tab tracks a run with the phone's GPS, with no watch needed. You set a run distance, a walk distance and a number of rounds (for example run 0.3 miles, walk 0.1, 4 rounds). The app speaks each change, so the phone can stay in a pocket, and it keeps tracking with the screen locked.
+
+- Distance only counts GPS fixes accurate to 25 metres or better, and ignores jitter under 3 metres and impossible jumps.
+- The clock starts on the first good fix. Pausing stops both the clock and the distance.
+- After the last round, anything more is counted as cool down until you tap Finish.
+- If a run can't be saved (no signal), it's kept on the phone and sent the next time the Run section loads.
+
+The route is stored with the run. Read the [security notes](/security) first: with no sign-in, anyone with your database key could read where you run.
 
 ## End-of-day total
 

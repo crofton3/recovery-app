@@ -14,11 +14,16 @@ struct TrainView: View {
                         header
                         Picker("View", selection: $mode) {
                             Text("Session").tag(0)
+                            Text("Run").tag(2)
                             Text("Schedule").tag(1)
                         }
                         .pickerStyle(.segmented)
 
-                        if mode == 0 { sessionContent } else { ScheduleEditorView() }
+                        switch mode {
+                        case 0: sessionContent
+                        case 2: RunSection()
+                        default: ScheduleEditorView()
+                        }
 
                         if let message = train.errorMessage {
                             Text(message).font(.system(size: 13)).foregroundStyle(Aurora.alert)

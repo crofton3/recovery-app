@@ -21,7 +21,7 @@ Every app I looked at did one of those things, or wanted a subscription to do se
 ## What it does
 
 - **Today:** WHOOP recovery, strain and sleep as activity rings, plus calories, protein, water, today's workout and a daily pain and swelling check.
-- **Train:** a session logger with last-time values and PR badges, and a weekly schedule with planned sets and reps.
+- **Train:** a session logger with last-time values and PR badges, a weekly schedule with planned sets and reps, and a GPS run tracker with run/walk intervals and voice cues.
 - **Achilles:** rehab phase, milestone checklist, pain and swelling trend, left and right strength and range of motion, and a PT log.
 - **Fuel:** quick food entry, an end-of-day total, and daily targets.
 - **Trends:** WHOOP charts, recovery against training days, and body weight and waist.

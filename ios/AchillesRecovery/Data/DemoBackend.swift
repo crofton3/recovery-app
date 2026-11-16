@@ -306,6 +306,26 @@ final class DemoBackend {
         ])
         add("daily_status", [["date": day(0), "water_oz": 64, "created_at": ts(0, hour: 8)]])
 
+        // Runs: return-to-run intervals, a little further each time. The route is a made-up loop.
+        let mile = 1609.344
+        let loop: [[Double]] = (0...60).map { i in
+            let a = Double(i) / 60 * 2 * Double.pi
+            return [37.7694 + 0.0016 * sin(a), -122.4862 + 0.0034 * cos(a)]
+        }
+        for (ago, rounds, pain) in [(9, 2, 3), (6, 3, 2), (4, 3, 2), (2, 4, 1)] {
+            var segments: [[String: Any]] = []
+            for _ in 0..<rounds {
+                segments.append(["kind": "run", "meters": 0.3 * mile, "seconds": 186])
+                segments.append(["kind": "walk", "meters": 0.1 * mile, "seconds": 112])
+            }
+            add("runs", [[
+                "date": day(ago), "started_at": ts(ago, hour: 7, minute: 15), "duration_s": rounds * 298,
+                "distance_m": Double(rounds) * 0.4 * mile, "run_m": Double(rounds) * 0.3 * mile, "walk_m": Double(rounds) * 0.1 * mile,
+                "run_s": rounds * 186, "plan_run_m": 0.3 * mile, "plan_walk_m": 0.1 * mile, "plan_rounds": rounds, "rounds_done": rounds,
+                "pain": pain, "segments": segments, "route": loop, "created_at": ts(ago, hour: 7, minute: 45),
+            ]])
+        }
+
         // Body check-ins every two weeks
         for i in 0..<8 {
             add("checkins", [["date": day(98 - i * 14), "body_weight": 192.4 - Double(i) * 0.5, "waist": 34.5 - Double(i) * 0.12, "created_at": ts(98 - i * 14, hour: 8)]])
