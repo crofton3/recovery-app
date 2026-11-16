@@ -1,6 +1,8 @@
 included:
   - AchillesRecovery
   - AchillesRecoveryTests
+  - AchillesWidgets
+  - Shared
 excluded:
   - AchillesRecovery/Config/Secrets.swift
 

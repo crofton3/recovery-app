@@ -3,14 +3,20 @@ import SwiftUI
 @main
 struct AchillesRecoveryApp: App {
     @State private var store = AppStore()
-    @State private var train = TrainStore()
+    @State private var train: TrainStore
     @State private var achilles = AchillesStore()
     @State private var fuel = FuelStore()
     @State private var trends = TrendsStore()
     @State private var runs = RunStore()
-    @State private var runTracker = RunTracker()
+    @State private var runTracker: RunTracker
 
     init() {
+        let train = TrainStore()
+        let tracker = RunTracker()
+        _train = State(initialValue: train)
+        _runTracker = State(initialValue: tracker)
+        Self.connectLiveActivities(train: train, tracker: tracker)
+
         let appearance = UITabBarAppearance()
         appearance.configureWithOpaqueBackground()
         appearance.backgroundColor = UIColor(Aurora.card)
@@ -22,6 +28,16 @@ struct AchillesRecoveryApp: App {
         }
         UITabBar.appearance().standardAppearance = appearance
         UITabBar.appearance().scrollEdgeAppearance = appearance
+    }
+
+    /// Keeps the lock screen in step with the run and the workout, and lets its buttons reach back into the app.
+    private static func connectLiveActivities(train: TrainStore, tracker: RunTracker) {
+        let live = LiveActivityController.shared
+        live.endLeftoverRuns()
+        tracker.onLiveChange = { live.syncRun(plan: $0.engine.plan, state: $0.activityState) }
+        train.onLiveChange = { live.syncWorkout(session: $0.session, blocks: $0.blocks) }
+        LiveActivityBridge.resumeRun = { tracker.resume() }
+        LiveActivityBridge.completeSet = { await train.completeNextSet() }
     }
 
     var body: some Scene {

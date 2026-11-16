@@ -30,6 +30,8 @@ final class TrainStore {
     var session: WorkoutSession?
     var blocks: [ExerciseBlock] = []
     var errorMessage: String?
+    /// Called whenever the workout on the lock screen may have changed. The app points this at the Live Activity.
+    @ObservationIgnored var onLiveChange: ((TrainStore) -> Void)?
 
     // MARK: Loading
 
@@ -37,6 +39,7 @@ final class TrainStore {
         do { exercises = try await API.get("exercises", query: ["order": "name"]) } catch { errorMessage = error.localizedDescription }
         do { weekSchedule = try await API.get("schedule_items", query: ["order": "weekday,reminder_time"]) } catch { errorMessage = error.localizedDescription }
         await resume()
+        onLiveChange?(self)
     }
 
     /// Picks up an unfinished session from today (for example after relaunching the app).
@@ -63,6 +66,7 @@ final class TrainStore {
             set: { [self] new in
                 if let bi = blocks.firstIndex(where: { $0.id == exerciseId }), let si = blocks[bi].sets.firstIndex(where: { $0.id == setId }) {
                     blocks[bi].sets[si] = new
+                    onLiveChange?(self)
                 }
             }
         )
@@ -82,11 +86,13 @@ final class TrainStore {
             }
             errorMessage = nil
         } catch { errorMessage = error.localizedDescription }
+        onLiveChange?(self)
     }
 
     func addExercise(_ ex: Exercise) async {
         guard !blocks.contains(where: { $0.id == ex.id }) else { return }
         blocks.append(await buildBlock(ex, existing: []))
+        onLiveChange?(self)
     }
 
     func finish() async {
@@ -96,6 +102,7 @@ final class TrainStore {
             self.session = nil
             blocks = []
             errorMessage = nil
+            onLiveChange?(self)
             Task { await NotificationPlanner.refresh() }
         } catch { errorMessage = error.localizedDescription }
     }
@@ -104,6 +111,7 @@ final class TrainStore {
         guard let bi = blocks.firstIndex(where: { $0.id == exerciseId }) else { return }
         let last = blocks[bi].sets.last
         blocks[bi].sets.append(SetDraft(weight: last?.weight ?? "", reps: last?.reps ?? "", done: false))
+        onLiveChange?(self)
     }
 
     func toggleDone(exerciseId: String, setId: UUID) async {
@@ -128,6 +136,7 @@ final class TrainStore {
             s.isPR = false
         }
         blocks[bi].sets[si] = s  // optimistic
+        onLiveChange?(self)
 
         do {
             if let sid = s.serverId {
@@ -144,7 +153,15 @@ final class TrainStore {
                 blocks[bi2].sets[si2] = before
             }
             errorMessage = error.localizedDescription
+            onLiveChange?(self)
         }
+    }
+
+    /// Marks the first set not yet done as done. This is what the lock screen check button does.
+    func completeNextSet() async {
+        if session == nil { await load() }
+        guard let block = blocks.first(where: { $0.sets.contains { !$0.done } }), let set = block.sets.first(where: { !$0.done }) else { return }
+        await toggleDone(exerciseId: block.id, setId: set.id)
     }
 
     // MARK: History

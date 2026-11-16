@@ -22,6 +22,8 @@ final class RunTracker: NSObject {
     /// The finished run, ready to save.
     private(set) var result: RunRecord?
     var voiceCues = true
+    /// Called whenever what the lock screen shows may have changed. The app points this at the Live Activity.
+    @ObservationIgnored var onLiveChange: ((RunTracker) -> Void)?
 
     @ObservationIgnored private let manager = CLLocationManager()
     @ObservationIgnored private let synth = AVSpeechSynthesizer()
@@ -45,6 +47,18 @@ final class RunTracker: NSObject {
     /// Active seconds so far (pauses left out).
     func elapsed(at date: Date = Date()) -> TimeInterval {
         banked + (resumedAt.map { max(date.timeIntervalSince($0), 0) } ?? 0)
+    }
+
+    /// What the lock screen should show right now. Nil when no run is in progress.
+    var activityState: RunActivityAttributes.ContentState? {
+        let live: RunActivityAttributes.Phase
+        switch phase {
+        case .locating: live = .locating
+        case .running: live = .running
+        case .paused: live = .paused
+        case .idle, .finished: return nil
+        }
+        return .make(engine: engine, phase: live, timerStart: resumedAt.map { $0.addingTimeInterval(-banked) }, pausedSeconds: banked)
     }
 
     var gpsQuality: (label: String, good: Bool) {
@@ -71,6 +85,7 @@ final class RunTracker: NSObject {
         manager.allowsBackgroundLocationUpdates = true
         manager.showsBackgroundLocationIndicator = true
         manager.startUpdatingLocation()
+        onLiveChange?(self)
     }
 
     func pause() {
@@ -79,6 +94,7 @@ final class RunTracker: NSObject {
         resumedAt = nil
         phase = .paused
         say("Paused")
+        onLiveChange?(self)
     }
 
     func resume() {
@@ -87,6 +103,7 @@ final class RunTracker: NSObject {
         resumedAt = Date()
         phase = .running
         say("Resumed")
+        onLiveChange?(self)
     }
 
     func finish() {
@@ -97,6 +114,7 @@ final class RunTracker: NSObject {
         stopLocation()
         result = RunRecord.make(plan: engine.plan, segments: engine.segments(elapsed: total), route: route, startedAt: startedAt, elapsed: total)
         phase = .finished
+        onLiveChange?(self)
         say("Run finished. \(spoken(engine.totalMeters / RunPlan.metersPerMile)) miles.")
     }
 
@@ -105,6 +123,7 @@ final class RunTracker: NSObject {
         stopLocation()
         result = nil
         phase = .idle
+        onLiveChange?(self)
     }
 
     private func stopLocation() {
@@ -141,6 +160,7 @@ final class RunTracker: NSObject {
                 break
             }
         }
+        onLiveChange?(self)
     }
 
     private func point(_ s: GPSFilter.Sample) -> [Double] {
