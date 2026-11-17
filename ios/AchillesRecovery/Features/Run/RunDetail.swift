@@ -10,6 +10,7 @@ struct RunStatsCard: View {
             HStack {
                 Text("Distance").caption()
                 Spacer()
+                if run.isTreadmill { Chip(text: "Treadmill", tint: Aurora.textMuted) }
                 if let rounds = run.planRounds {
                     Chip(text: "\(run.roundsDone) of \(rounds) rounds", tint: run.roundsDone >= rounds ? Aurora.recovery : Aurora.nutrition)
                 }

@@ -44,6 +44,7 @@ private struct PlanCard: View {
     @Environment(RunStore.self) private var store
     @Environment(RunTracker.self) private var tracker
     @Environment(\.openURL) private var openURL
+    @State private var showTreadmill = false
 
     var body: some View {
         @Bindable var store = store
@@ -94,8 +95,18 @@ private struct PlanCard: View {
             }
             Text("Distance comes from your phone's GPS, so run outside and keep the phone on you. It keeps tracking with the screen locked.")
                 .font(.system(size: 13)).foregroundStyle(Aurora.textMuted)
+
+            Button {
+                showTreadmill = true
+            } label: {
+                Label("Log treadmill run", systemImage: "figure.run.treadmill")
+            }
+            .buttonStyle(SecondaryButtonStyle())
+            Text("On the treadmill? Type in the distance and time from its display when you finish.")
+                .font(.system(size: 13)).foregroundStyle(Aurora.textMuted)
         }
         .auroraCard()
+        .sheet(isPresented: $showTreadmill) { TreadmillLogSheet() }
     }
 
     /// Steps in clean 0.05 mile increments (no floating point drift).
@@ -168,6 +179,10 @@ private struct HistoryCard: View {
                 Text(subtitle(run)).font(.system(size: 13)).foregroundStyle(Aurora.textMuted)
             }
             Spacer()
+            if run.isTreadmill {
+                Image(systemName: "figure.run.treadmill").font(.system(size: 15, weight: .semibold)).foregroundStyle(Aurora.textMuted)
+                    .accessibilityLabel("Treadmill")
+            }
             if store.isPending(run) { Chip(text: "Not synced", tint: Aurora.nutrition) }
             else if let pain = run.pain { Chip(text: "Pain \(pain)", tint: pain >= 4 ? Aurora.alert : Aurora.textMuted) }
             Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(Aurora.textMuted)

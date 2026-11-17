@@ -3,6 +3,9 @@ import Observation
 
 /// One finished run. The id is made on the phone so a retried save never creates a duplicate.
 struct RunRecord: Codable, Identifiable, Equatable {
+    /// Where the distance came from. Missing means GPS (rows saved before treadmill runs existed).
+    enum Source: String, Codable { case gps, treadmill }
+
     var id: String
     var date: String
     var startedAt: String
@@ -22,6 +25,9 @@ struct RunRecord: Codable, Identifiable, Equatable {
     var segments: [RunSegment]?
     /// [[latitude, longitude]]. Left out of list queries and fetched when a run is opened.
     var route: [[Double]]?
+    var source: Source?
+
+    var isTreadmill: Bool { source == .treadmill }
 
     var started: Date? { ISO8601DateFormatter().date(from: startedAt) }
 
@@ -37,7 +43,20 @@ struct RunRecord: Codable, Identifiable, Equatable {
             runS: Int(runs.reduce(0) { $0 + $1.seconds }.rounded()),
             planRunM: plan.runMeters, planWalkM: plan.walkMeters, planRounds: plan.rounds,
             roundsDone: min(fullRuns, plan.rounds), pain: nil, notes: nil,
-            segments: segments, route: thin(route))
+            segments: segments, route: thin(route), source: .gps)
+    }
+
+    /// A run typed in from the treadmill's display. Walking is optional; the rest counts as running.
+    static func treadmill(finishedAt: Date, distanceM: Double, durationS: Int, walkM: Double = 0, walkS: Int = 0,
+                          pain: Int? = nil, notes: String? = nil) -> RunRecord {
+        let walkM = min(max(walkM, 0), distanceM)
+        let walkS = min(max(walkS, 0), durationS)
+        let startedAt = finishedAt.addingTimeInterval(-Double(durationS))
+        return RunRecord(
+            id: UUID().uuidString.lowercased(), date: Day.string(startedAt), startedAt: ISO8601DateFormatter().string(from: startedAt),
+            durationS: durationS, distanceM: distanceM, runM: distanceM - walkM, walkM: walkM, runS: durationS - walkS,
+            planRunM: nil, planWalkM: nil, planRounds: nil, roundsDone: 0, pain: pain, notes: notes,
+            segments: [], route: [], source: .treadmill)
     }
 
     /// Keeps a route to at most `limit` points, always including the last one.
@@ -51,7 +70,7 @@ struct RunRecord: Codable, Identifiable, Equatable {
 @MainActor
 @Observable
 final class RunStore {
-    private static let listColumns = "id,date,started_at,duration_s,distance_m,run_m,walk_m,run_s,plan_run_m,plan_walk_m,plan_rounds,rounds_done,pain,notes,segments"
+    private static let listColumns = "id,date,started_at,duration_s,distance_m,run_m,walk_m,run_s,plan_run_m,plan_walk_m,plan_rounds,rounds_done,pain,notes,segments,source"
     private static let planKey = "runPlan"
     private static let voiceKey = "runVoiceCues"
 
@@ -120,6 +139,7 @@ final class RunStore {
 
     /// The route for a run from the list (which is loaded without routes).
     func route(for run: RunRecord) async -> [[Double]] {
+        if run.isTreadmill { return [] }
         if let route = all.first(where: { $0.id == run.id })?.route ?? run.route { return route }
         struct Row: Decodable { var route: [[Double]]? }
         let rows: [Row] = (try? await API.get("runs", query: ["id": "eq.\(run.id)", "select": "route"])) ?? []
