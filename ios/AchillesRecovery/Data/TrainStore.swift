@@ -25,6 +25,26 @@ final class TrainStore {
         var plan: PlanEntry?
     }
 
+    /// One exercise in a finished workout, with the sets that were checked off.
+    struct LoggedExercise: Identifiable {
+        var id: String { exerciseId }
+        var exerciseId: String
+        var sets: [WorkoutSet]
+    }
+
+    /// A finished workout for the history list.
+    struct HistoryEntry: Identifiable {
+        var id: String { session.id }
+        var session: WorkoutSession
+        var exercises: [LoggedExercise]
+        var setCount: Int { exercises.reduce(0) { $0 + $1.sets.count } }
+        var started: Date? { TrainStore.date(session.startedAt) }
+        var duration: TimeInterval? {
+            guard let start = started, let end = TrainStore.date(session.completedAt) else { return nil }
+            return max(0, end.timeIntervalSince(start))
+        }
+    }
+
     private struct SavedWorkout: Codable {
         var sessionId: String
         var blocks: [ExerciseBlock]
@@ -35,6 +55,11 @@ final class TrainStore {
     var session: WorkoutSession?
     var blocks: [ExerciseBlock] = []
     var errorMessage: String?
+    /// Finished workouts, newest first.
+    var history: [HistoryEntry] = []
+    var historyLoaded = false
+    /// Shown after Finish so it is clear the workout was saved.
+    var savedNotice: String?
     /// Called whenever the workout on the lock screen may have changed. The app points this at the Live Activity.
     @ObservationIgnored var onLiveChange: ((TrainStore) -> Void)?
     @ObservationIgnored private var loadTask: Task<Void, Never>?
@@ -175,6 +200,7 @@ final class TrainStore {
             session = active
             blocks = planned
             errorMessage = nil
+            savedNotice = nil
             publishWorkout()
         } catch { errorMessage = error.localizedDescription }
     }
@@ -212,11 +238,14 @@ final class TrainStore {
         defer { finishing = false }
         do {
             try await API.patch("workout_sessions", id: session.id, SessionComplete(completedAt: ISO8601DateFormatter().string(from: Date())))
+            let done = blocks.reduce(0) { $0 + $1.sets.filter(\.done).count }
             self.session = nil
             blocks = []
             errorMessage = nil
+            savedNotice = "\(session.title) saved with \(done == 1 ? "1 set" : "\(done) sets"). Find it under Recent workouts."
             publishWorkout()
             Task { await NotificationPlanner.refresh() }
+            await loadHistory()
         } catch { errorMessage = error.localizedDescription }
     }
 
@@ -280,6 +309,51 @@ final class TrainStore {
     }
 
     // MARK: History
+
+    /// Loads finished workouts and the sets checked off in each.
+    func loadHistory() async {
+        do {
+            let sessions: [WorkoutSession] = try await API.get("workout_sessions", query: [
+                "completed_at": "not.is.null", "order": "date.desc,started_at.desc", "limit": "30",
+            ])
+            var sets: [WorkoutSet] = []
+            if !sessions.isEmpty {
+                sets = try await API.get("workout_sets", query: [
+                    "session_id": "in.(\(sessions.map(\.id).joined(separator: ",")))", "done": "eq.true", "order": "created_at",
+                ])
+            }
+            history = sessions.map { s in Self.entry(s, sets: sets.filter { $0.sessionId == s.id }) }
+            historyLoaded = true
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    func deleteWorkout(_ id: String) async {
+        do {
+            try await API.delete("workout_sessions", id: id)
+            history.removeAll { $0.id == id }
+            errorMessage = nil
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    /// Groups a session's sets by exercise, in the order the exercises were first logged.
+    nonisolated static func entry(_ session: WorkoutSession, sets: [WorkoutSet]) -> HistoryEntry {
+        var order: [String] = []
+        for set in sets where !order.contains(set.exerciseId) { order.append(set.exerciseId) }
+        let exercises = order.map { id in
+            LoggedExercise(exerciseId: id, sets: sets.filter { $0.exerciseId == id }.sorted { $0.setNo < $1.setNo })
+        }
+        return HistoryEntry(session: session, exercises: exercises)
+    }
+
+    /// Parses Supabase timestamps, with or without fractional seconds.
+    nonisolated static func date(_ string: String?) -> Date? {
+        guard let string else { return nil }
+        let plain = ISO8601DateFormatter()
+        if let d = plain.date(from: string) { return d }
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return fractional.date(from: string)
+    }
 
     /// Epley estimated one-rep max for weighted sets, reps for bodyweight sets.
     static func score(weight: Double?, reps: Int?) -> Double {

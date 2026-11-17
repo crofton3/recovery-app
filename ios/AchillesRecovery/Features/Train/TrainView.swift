@@ -4,6 +4,7 @@ struct TrainView: View {
     @Environment(TrainStore.self) private var train
     @State private var mode = 0
     @State private var showPicker = false
+    @State private var workoutDetail: TrainStore.HistoryEntry?
 
     var body: some View {
         NavigationStack {
@@ -45,8 +46,12 @@ struct TrainView: View {
             .sheet(isPresented: $showPicker) {
                 ExercisePickerSheet { ex in Task { await train.addExercise(ex) } }
             }
+            .sheet(item: $workoutDetail) { WorkoutDetailSheet(entry: $0) }
         }
-        .task { await train.load() }
+        .task {
+            await train.load()
+            await train.loadHistory()
+        }
     }
 
     private var header: some View {
@@ -69,7 +74,14 @@ struct TrainView: View {
             Button("Finish workout") { Task { await train.finish() } }
                 .buttonStyle(PrimaryButtonStyle())
         } else {
+            if let notice = train.savedNotice {
+                Label(notice, systemImage: "checkmark.circle.fill")
+                    .font(.system(size: 15, weight: .semibold)).foregroundStyle(Aurora.recovery)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .auroraCard()
+            }
             StartCard()
+            WorkoutHistoryCard(onOpen: { workoutDetail = $0 })
         }
     }
 }

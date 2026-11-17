@@ -35,6 +35,16 @@ struct TrainStoreTests {
         let open: [WorkoutSession] = try await API.get("workout_sessions", query: ["date": "eq.\(Day.string())", "completed_at": "is.null"])
         #expect(open.isEmpty)
 
+        // The finished workout shows up first in history with the sets that were checked off.
+        #expect(store.savedNotice?.contains("3 sets") == true)
+        let latest = try #require(store.history.first)
+        #expect(latest.id == resumed.id)
+        #expect(latest.exercises.first?.exerciseId == legPress.id)
+        #expect(latest.exercises.count == 2)
+        #expect(latest.setCount == 3)
+        #expect(latest.duration != nil)
+        #expect(store.history.count > 1)
+
         // Starting from today's scheduled item builds every planned exercise with the planned sets and reps.
         let today = try #require(store.weekSchedule.first { $0.weekday == Day.weekday && !($0.plan ?? []).isEmpty })
         await store.startSession(from: today)

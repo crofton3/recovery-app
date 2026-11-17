@@ -87,6 +87,9 @@ final class DemoBackend {
         if expr == "is.null" { return isNull }
         if expr == "not.is.null" { return !isNull }
         if expr.hasPrefix("eq.") { return str(value) == String(expr.dropFirst(3)) }
+        if expr.hasPrefix("in.(") && expr.hasSuffix(")") {
+            return expr.dropFirst(4).dropLast().split(separator: ",").map(String.init).contains(str(value))
+        }
         if expr.hasPrefix("gte.") { return compare(str(value), String(expr.dropFirst(4))) >= 0 }
         return true
     }
