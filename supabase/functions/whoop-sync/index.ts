@@ -122,10 +122,10 @@ Deno.serve(async (req) => {
 
     if (rows.length > 0) {
       const { error } = await db.from("whoop_daily").upsert(rows, { onConflict: "date" });
-      if (error) return json({ ok: false, error: error.message }, 500);
+      if (error) return json({ ok: false, error: "Could not save WHOOP data." }, 500);
     }
     return json({ ok: true, connected: true, rows: rows.length });
-  } catch (e) {
-    return json({ ok: false, error: String(e) }, 502);
+  } catch {
+    return json({ ok: false, error: "Could not sync WHOOP data." }, 502);
   }
 });
