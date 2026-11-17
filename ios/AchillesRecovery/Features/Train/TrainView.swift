@@ -4,7 +4,7 @@ struct TrainView: View {
     @Environment(TrainStore.self) private var train
     @State private var mode = 0
     @State private var showPicker = false
-    @State private var workoutDetail: TrainStore.HistoryEntry?
+    @State private var openDay: CalendarDay?
 
     var body: some View {
         NavigationStack {
@@ -46,12 +46,9 @@ struct TrainView: View {
             .sheet(isPresented: $showPicker) {
                 ExercisePickerSheet { ex in Task { await train.addExercise(ex) } }
             }
-            .sheet(item: $workoutDetail) { WorkoutDetailSheet(entry: $0) }
+            .sheet(item: $openDay) { WorkoutDaySheet(day: $0.id) }
         }
-        .task {
-            await train.load()
-            await train.loadHistory()
-        }
+        .task { await train.load() }
     }
 
     private var header: some View {
@@ -81,7 +78,7 @@ struct TrainView: View {
                     .auroraCard()
             }
             StartCard()
-            WorkoutHistoryCard(onOpen: { workoutDetail = $0 })
+            WorkoutCalendarCard(onOpen: { openDay = $0 })
         }
     }
 }

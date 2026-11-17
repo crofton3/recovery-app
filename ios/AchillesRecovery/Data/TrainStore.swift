@@ -58,6 +58,8 @@ final class TrainStore {
     /// Finished workouts, newest first.
     var history: [HistoryEntry] = []
     var historyLoaded = false
+    /// Earliest date (yyyy-MM-dd) the history covers.
+    private(set) var historySince: String?
     /// Shown after Finish so it is clear the workout was saved.
     var savedNotice: String?
     /// Called whenever the workout on the lock screen may have changed. The app points this at the Live Activity.
@@ -242,7 +244,7 @@ final class TrainStore {
             self.session = nil
             blocks = []
             errorMessage = nil
-            savedNotice = "\(session.title) saved with \(done == 1 ? "1 set" : "\(done) sets"). Find it under Recent workouts."
+            savedNotice = "\(session.title) saved with \(done == 1 ? "1 set" : "\(done) sets"). Tap today on the calendar to see it."
             publishWorkout()
             Task { await NotificationPlanner.refresh() }
             await loadHistory()
@@ -310,11 +312,13 @@ final class TrainStore {
 
     // MARK: History
 
-    /// Loads finished workouts and the sets checked off in each.
-    func loadHistory() async {
+    /// Loads finished workouts on or after `since` (yyyy-MM-dd) and the sets checked off in each.
+    /// With no date it reloads the range already loaded, or this month.
+    func loadHistory(since: String? = nil) async {
+        let from = [since, historySince].compactMap { $0 }.min() ?? Self.monthStart(Date())
         do {
             let sessions: [WorkoutSession] = try await API.get("workout_sessions", query: [
-                "completed_at": "not.is.null", "order": "date.desc,started_at.desc", "limit": "30",
+                "completed_at": "not.is.null", "date": "gte.\(from)", "order": "date.desc,started_at.desc", "limit": "500",
             ])
             var sets: [WorkoutSet] = []
             if !sessions.isEmpty {
@@ -323,8 +327,52 @@ final class TrainStore {
                 ])
             }
             history = sessions.map { s in Self.entry(s, sets: sets.filter { $0.sessionId == s.id }) }
+            historySince = from
             historyLoaded = true
         } catch { errorMessage = error.localizedDescription }
+    }
+
+    nonisolated static func monthStart(_ date: Date) -> String {
+        let cal = Calendar.current
+        return Day.string(cal.date(from: cal.dateComponents([.year, .month], from: date)) ?? date)
+    }
+
+    /// How each exercise in a finished workout compares with the session before it.
+    struct Progress {
+        /// The strongest set in this workout.
+        var top: WorkoutSet?
+        /// The strongest set the previous time this exercise was done.
+        var previous: WorkoutSet?
+        /// Beat every earlier session.
+        var isPR: Bool
+    }
+
+    func progress(for entry: HistoryEntry) async -> [String: Progress] {
+        var result: [String: Progress] = [:]
+        let firstLogged = entry.exercises.flatMap(\.sets).compactMap(\.createdAt).min()
+        for logged in entry.exercises {
+            let rows: [WorkoutSet] = (try? await API.get("workout_sets", query: [
+                "exercise_id": "eq.\(logged.exerciseId)", "done": "eq.true", "order": "created_at.desc", "limit": "500",
+            ])) ?? []
+            result[logged.exerciseId] = Self.progress(logged.sets, history: rows, sessionId: entry.id, before: firstLogged)
+        }
+        return result
+    }
+
+    /// `history` is every done set for the exercise, newest first. Only sets from other sessions logged earlier count.
+    nonisolated static func progress(_ sets: [WorkoutSet], history: [WorkoutSet], sessionId: String, before: String?) -> Progress {
+        let prior = history.filter { row in
+            guard row.sessionId != sessionId else { return false }
+            guard let before, let created = row.createdAt else { return true }
+            return (date(created) ?? .distantPast) < (date(before) ?? .distantFuture)
+        }
+        func best(_ rows: [WorkoutSet]) -> WorkoutSet? { rows.max { score(weight: $0.weight, reps: $0.reps) < score(weight: $1.weight, reps: $1.reps) } }
+        let top = best(sets)
+        let lastSession = prior.first?.sessionId
+        let previous = best(prior.filter { $0.sessionId == lastSession })
+        let priorBest = prior.map { score(weight: $0.weight, reps: $0.reps) }.max() ?? 0
+        let isPR = top.map { priorBest > 0 && score(weight: $0.weight, reps: $0.reps) > priorBest } ?? false
+        return Progress(top: top, previous: previous, isPR: isPR)
     }
 
     func deleteWorkout(_ id: String) async {
@@ -356,7 +404,7 @@ final class TrainStore {
     }
 
     /// Epley estimated one-rep max for weighted sets, reps for bodyweight sets.
-    static func score(weight: Double?, reps: Int?) -> Double {
+    nonisolated static func score(weight: Double?, reps: Int?) -> Double {
         let r = Double(reps ?? 0)
         if let w = weight, w > 0 { return w * (1 + r / 30) }
         return r
