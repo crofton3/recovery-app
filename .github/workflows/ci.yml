@@ -151,7 +151,8 @@ jobs:
           cache-dependency-path: docs/package-lock.json
       - run: npm ci
       - name: Audit dependencies
-        run: npm audit --audit-level=low
+        # Same as npm audit --audit-level=low, with temporary exceptions listed in the script.
+        run: node ../.github/scripts/npm-audit.mjs
       - run: npm run build
 
   secrets:
