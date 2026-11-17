@@ -202,6 +202,17 @@ struct TreadmillTests {
         #expect(TreadmillEntry(miles: "2", minutes: "20", walkMiles: "1", walkMinutes: "25").problem != nil)
         #expect(TreadmillEntry(miles: "2", minutes: "0", seconds: "0").problem != nil)
         #expect(TreadmillEntry(miles: "2", minutes: "20", walkMiles: "2", walkMinutes: "20").problem == nil)
+        // Walk distance and walk time come as a pair, or walking still drags down run pace.
+        #expect(TreadmillEntry(miles: "2", minutes: "20", walkMiles: "0.5").problem != nil)
+        #expect(TreadmillEntry(miles: "2", minutes: "20", walkMinutes: "5").problem != nil)
+        // Huge numbers are refused instead of crashing when turned into seconds.
+        let huge = TreadmillEntry(miles: "2", minutes: "999999999999999999")
+        #expect(huge.durationS == nil)
+        #expect(huge.problem != nil)
+        #expect(huge.record(finishedAt: Date(), pain: nil, notes: nil) == nil)
+        let hugeWalk = TreadmillEntry(miles: "2", minutes: "20", walkMiles: "1", walkMinutes: "1e300")
+        #expect(hugeWalk.walkS == nil)
+        #expect(hugeWalk.problem != nil)
     }
 }
 

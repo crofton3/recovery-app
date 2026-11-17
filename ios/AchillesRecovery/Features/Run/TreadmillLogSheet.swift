@@ -8,28 +8,44 @@ struct TreadmillEntry {
     var walkMiles = ""
     var walkMinutes = ""
 
+    /// Longest run the form accepts. Also keeps typed numbers small enough to turn into whole seconds safely.
+    static let maxSeconds = 24 * 3600
+
     var distanceM: Double? { Self.number(miles).map { $0 * RunPlan.metersPerMile } }
     var durationS: Int? {
         let m = Self.number(minutes) ?? 0, s = Self.number(seconds) ?? 0
-        let total = Int((m * 60 + s).rounded())
-        return total > 0 ? total : nil
+        guard let total = Self.seconds(m * 60 + s), total > 0 else { return nil }
+        return total
     }
     var walkM: Double { (Self.number(walkMiles) ?? 0) * RunPlan.metersPerMile }
-    var walkS: Int { Int(((Self.number(walkMinutes) ?? 0) * 60).rounded()) }
+    /// Nil when what was typed is too large to be a real walk time.
+    var walkS: Int? { Self.seconds((Self.number(walkMinutes) ?? 0) * 60) }
 
     /// Why the entry can't be saved yet, or nil when it can.
     var problem: String? {
         guard let distanceM, distanceM > 0 else { return "Enter the distance from the treadmill." }
-        guard let durationS else { return "Enter how long you were on the treadmill." }
+        guard let durationS else {
+            let typed = (Self.number(minutes) ?? 0) > 0 || (Self.number(seconds) ?? 0) > 0
+            return typed ? "That time is too long. Check minutes and seconds." : "Enter how long you were on the treadmill."
+        }
+        guard let walkS else { return "That walking time is too long." }
         if walkM > distanceM { return "Walking can't be more than the total distance." }
         if walkS > durationS { return "Walking time can't be more than the total time." }
-        if walkM > 0, walkM < distanceM, walkS >= durationS { return "Add your walking time so run pace is right." }
+        if walkM > 0, walkS == 0 { return "Add your walking time so run pace is right." }
+        if walkS > 0, walkM == 0 { return "Add how far you walked." }
+        if walkM > 0, walkM < distanceM, walkS >= durationS { return "Walking time has to leave some time for running." }
         return nil
     }
 
     func record(finishedAt: Date, pain: Int?, notes: String?) -> RunRecord? {
-        guard problem == nil, let distanceM, let durationS else { return nil }
+        guard problem == nil, let distanceM, let durationS, let walkS else { return nil }
         return .treadmill(finishedAt: finishedAt, distanceM: distanceM, durationS: durationS, walkM: walkM, walkS: walkS, pain: pain, notes: notes)
+    }
+
+    /// Whole seconds, or nil when the value is past `maxSeconds` (converting a huge Double to Int would crash).
+    private static func seconds(_ value: Double) -> Int? {
+        guard value.isFinite, value >= 0, value <= Double(maxSeconds) else { return nil }
+        return Int(value.rounded())
     }
 
     /// Accepts "3.1" and "3,1".
@@ -97,7 +113,7 @@ struct TreadmillLogSheet: View {
                 numberField("Seconds", text: $entry.seconds, unit: "sec", keyboard: .numberPad)
             }
             if let d = entry.distanceM, let t = entry.durationS {
-                let runM = d - min(entry.walkM, d), runS = max(t - entry.walkS, 0)
+                let runM = d - min(entry.walkM, d), runS = max(t - (entry.walkS ?? 0), 0)
                 Text("\(RunFormat.pace(meters: runM, seconds: Double(runS))) /mi run pace")
                     .font(.system(size: 15, weight: .semibold)).monospacedDigit().foregroundStyle(Aurora.strain)
             }
