@@ -71,5 +71,17 @@ struct TrainStoreTests {
         await store.toggleDone(exerciseId: blank.id, setId: store.blocks[bi].sets[1].id)
         #expect(store.blocks[bi].sets[1].done)
         #expect(!store.blocks[bi].sets[1].isPR)
+
+        // Removing an exercise added by mistake deletes its saved sets, so it does not come back when the workout resumes.
+        let sessionId = try #require(store.session?.id)
+        await store.removeExercise(blank.id)
+        #expect(store.errorMessage == nil)
+        #expect(!store.blocks.contains { $0.id == blank.id })
+        let leftover: [WorkoutSet] = try await API.get("workout_sets", query: ["session_id": "eq.\(sessionId)", "exercise_id": "eq.\(blank.id)"])
+        #expect(leftover.isEmpty)
+        let reopened = TrainStore()
+        await reopened.load()
+        #expect(reopened.session?.id == sessionId)
+        #expect(!reopened.blocks.contains { $0.id == blank.id })
     }
 }

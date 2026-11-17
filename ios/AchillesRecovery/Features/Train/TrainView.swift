@@ -136,6 +136,7 @@ private struct SessionSummary: View {
 private struct ExerciseCard: View {
     @Environment(TrainStore.self) private var train
     var exerciseId: String
+    @State private var confirmRemove = false
 
     var body: some View {
         @Bindable var train = train
@@ -156,6 +157,28 @@ private struct ExerciseCard: View {
                     }
                     Spacer()
                     Chip(text: block.exercise.category.capitalized, tint: block.exercise.category == "rehab" ? Aurora.alert : Aurora.strain)
+                    Menu {
+                        Button("Remove from workout", systemImage: "trash", role: .destructive) {
+                            if block.sets.contains(where: \.done) {
+                                confirmRemove = true
+                            } else {
+                                Task { await train.removeExercise(exerciseId) }
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis").font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(Aurora.textMuted)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("Options for \(block.exercise.name)")
+                }
+                .confirmationDialog("Remove \(block.exercise.name)?", isPresented: $confirmRemove, titleVisibility: .visible) {
+                    Button("Remove and delete logged sets", role: .destructive) {
+                        Task { await train.removeExercise(exerciseId) }
+                    }
+                } message: {
+                    Text("Sets you've already marked done for this exercise will be deleted.")
                 }
                 VStack(spacing: 8) {
                     ForEach(Array(block.sets.enumerated()), id: \.element.id) { si, set in

@@ -185,6 +185,23 @@ final class TrainStore {
         publishWorkout()
     }
 
+    /// Takes an exercise out of the current workout, deleting any sets already saved for it so it doesn't come back on resume.
+    func removeExercise(_ exerciseId: String) async {
+        guard let session, !finishing,
+              let block = blocks.first(where: { $0.id == exerciseId }),
+              !block.sets.contains(where: { savingSets.contains($0.id) }) else { return }
+        do {
+            try await API.send("DELETE", "workout_sets", query: ["session_id": "eq.\(session.id)", "exercise_id": "eq.\(exerciseId)"], prefer: "return=minimal")
+        } catch {
+            errorMessage = error.localizedDescription
+            return
+        }
+        guard self.session?.id == session.id else { return }
+        blocks.removeAll { $0.id == exerciseId }
+        errorMessage = nil
+        publishWorkout()
+    }
+
     func finish() async {
         guard let session, !finishing, savingSets.isEmpty else { return }
         finishing = true
