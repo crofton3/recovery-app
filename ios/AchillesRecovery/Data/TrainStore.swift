@@ -41,6 +41,8 @@ final class TrainStore {
     @ObservationIgnored private var starting = false
     @ObservationIgnored private var finishing = false
     @ObservationIgnored private var savingSets: Set<UUID> = []
+    /// Exercises whose removal is waiting on the server. Their sets can't be saved meanwhile.
+    @ObservationIgnored private var removingExercises: Set<String> = []
     private let draftURL: URL?
 
     init(draftURL: URL? = nil) {
@@ -187,9 +189,11 @@ final class TrainStore {
 
     /// Takes an exercise out of the current workout, deleting any sets already saved for it so it doesn't come back on resume.
     func removeExercise(_ exerciseId: String) async {
-        guard let session, !finishing,
+        guard let session, !finishing, !removingExercises.contains(exerciseId),
               let block = blocks.first(where: { $0.id == exerciseId }),
               !block.sets.contains(where: { savingSets.contains($0.id) }) else { return }
+        removingExercises.insert(exerciseId)
+        defer { removingExercises.remove(exerciseId) }
         do {
             try await API.send("DELETE", "workout_sets", query: ["session_id": "eq.\(session.id)", "exercise_id": "eq.\(exerciseId)"], prefer: "return=minimal")
         } catch {
@@ -224,7 +228,7 @@ final class TrainStore {
     }
 
     func toggleDone(exerciseId: String, setId: UUID) async {
-        guard let session, !finishing, !savingSets.contains(setId),
+        guard let session, !finishing, !savingSets.contains(setId), !removingExercises.contains(exerciseId),
               let bi = blocks.firstIndex(where: { $0.id == exerciseId }),
               let si = blocks[bi].sets.firstIndex(where: { $0.id == setId }) else { return }
         var s = blocks[bi].sets[si]
@@ -252,15 +256,18 @@ final class TrainStore {
             return
         }
 
+        // Other blocks can be added or removed while the request is out, so look the set up again by ID.
+        guard let current = blocks.firstIndex(where: { $0.id == exerciseId }),
+              let index = blocks[current].sets.firstIndex(where: { $0.id == setId }) else { return }
         s.done = newDone
         if newDone {
             let sc = Self.score(weight: weight, reps: reps)
-            let otherBest = blocks[bi].sets.filter { $0.done && $0.id != setId }.map { Self.score(weight: Double($0.weight), reps: Int($0.reps)) }.max() ?? 0
-            s.isPR = blocks[bi].priorBest > 0 && sc > blocks[bi].priorBest && sc >= otherBest
+            let otherBest = blocks[current].sets.filter { $0.done && $0.id != setId }.map { Self.score(weight: Double($0.weight), reps: Int($0.reps)) }.max() ?? 0
+            s.isPR = blocks[current].priorBest > 0 && sc > blocks[current].priorBest && sc >= otherBest
         } else {
             s.isPR = false
         }
-        blocks[bi].sets[si] = s
+        blocks[current].sets[index] = s
         errorMessage = nil
         publishWorkout()
     }
