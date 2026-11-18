@@ -290,7 +290,6 @@ final class TrainStore {
         await toggleDone(exerciseId: block.id, setId: setId)
     }
 
-
     /// Parses Supabase timestamps, with or without fractional seconds.
     nonisolated static func date(_ string: String?) -> Date? {
         guard let string else { return nil }
