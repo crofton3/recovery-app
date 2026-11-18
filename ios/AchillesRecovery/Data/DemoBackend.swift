@@ -10,6 +10,7 @@ enum DemoMode {
 /// A tiny stand-in for the PostgREST calls the app makes, backed by fake rows.
 final class DemoBackend {
     static let shared = DemoBackend()
+    private static let maxRows = 1000
 
     private var tables: [String: [[String: Any]]] = [:]
     private let lock = NSLock()
@@ -28,7 +29,9 @@ final class DemoBackend {
         case "GET":
             rows = filter(rows, query)
             rows = sort(rows, order: query["order"])
-            if let limit = query["limit"].flatMap(Int.init) { rows = Array(rows.prefix(limit)) }
+            if let offset = query["offset"].flatMap(Int.init) { rows = Array(rows.dropFirst(offset)) }
+            // The real API stops at max_rows (1,000) however much was asked for, so the demo does too.
+            rows = Array(rows.prefix(min(query["limit"].flatMap(Int.init) ?? Self.maxRows, Self.maxRows)))
             if let select = query["select"], select != "*" {
                 let keys = select.split(separator: ",").map(String.init)
                 rows = rows.map { $0.filter { keys.contains($0.key) } }
@@ -73,7 +76,7 @@ final class DemoBackend {
     // MARK: Query helpers
 
     private func matchesAll(_ row: [String: Any], _ query: [String: String]) -> Bool {
-        let reserved: Set<String> = ["order", "limit", "select", "on_conflict"]
+        let reserved: Set<String> = ["order", "limit", "offset", "select", "on_conflict"]
         return query.allSatisfy { reserved.contains($0.key) || matches(row, key: $0.key, expr: $0.value) }
     }
 
@@ -90,6 +93,7 @@ final class DemoBackend {
         if expr.hasPrefix("in.(") && expr.hasSuffix(")") {
             return expr.dropFirst(4).dropLast().split(separator: ",").map(String.init).contains(str(value))
         }
+        if expr.hasPrefix("lt.") { return compare(str(value), String(expr.dropFirst(3))) < 0 }
         if expr.hasPrefix("gte.") { return compare(str(value), String(expr.dropFirst(4))) >= 0 }
         return true
     }

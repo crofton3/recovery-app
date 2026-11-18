@@ -31,10 +31,13 @@ extension TrainStore {
             let sessions: [WorkoutSession] = try await API.get("workout_sessions", query: [
                 "completed_at": "not.is.null", "date": "gte.\(from)", "order": "date.desc,started_at.desc", "limit": "500",
             ])
+            // Ask for a few sessions at a time so the URL stays short, and read every page of each answer.
             var sets: [WorkoutSet] = []
-            if !sessions.isEmpty {
-                sets = try await API.get("workout_sets", query: [
-                    "session_id": "in.(\(sessions.map(\.id).joined(separator: ",")))", "done": "eq.true", "order": "created_at",
+            let ids = sessions.map(\.id)
+            for start in stride(from: 0, to: ids.count, by: 40) {
+                let chunk = ids[start..<min(start + 40, ids.count)]
+                sets += try await Self.getAll("workout_sets", query: [
+                    "session_id": "in.(\(chunk.joined(separator: ",")))", "done": "eq.true", "order": "created_at,id",
                 ])
             }
             history = sessions.map { s in Self.entry(s, sets: sets.filter { $0.sessionId == s.id }) }
@@ -61,10 +64,15 @@ extension TrainStore {
     func progress(for entry: HistoryEntry) async -> [String: Progress] {
         var result: [String: Progress] = [:]
         let firstLogged = entry.exercises.flatMap(\.sets).compactMap(\.createdAt).min()
+        // Written in UTC with a Z, since a "+" in an offset would be read as a space in the URL.
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let cutoff = firstLogged.flatMap { Self.date($0) }.map { formatter.string(from: $0) }
         for logged in entry.exercises {
-            let rows: [WorkoutSet] = (try? await API.get("workout_sets", query: [
-                "exercise_id": "eq.\(logged.exerciseId)", "done": "eq.true", "order": "created_at.desc", "limit": "500",
-            ])) ?? []
+            // Only sets from before this workout matter, and all of them, so the best and the previous session are right.
+            var query = ["exercise_id": "eq.\(logged.exerciseId)", "done": "eq.true", "order": "created_at.desc,id"]
+            if let cutoff { query["created_at"] = "lt.\(cutoff)" }
+            let rows: [WorkoutSet] = (try? await Self.getAll("workout_sets", query: query)) ?? []
             result[logged.exerciseId] = Self.progress(logged.sets, history: rows, sessionId: entry.id, before: firstLogged)
         }
         return result
@@ -84,6 +92,21 @@ extension TrainStore {
         let priorBest = prior.map { score(weight: $0.weight, reps: $0.reps) }.max() ?? 0
         let isPR = top.map { priorBest > 0 && score(weight: $0.weight, reps: $0.reps) > priorBest } ?? false
         return Progress(top: top, previous: previous, isPR: isPR)
+    }
+
+    /// Reads every row a query matches, a page at a time, because the API caps one response at 1,000 rows.
+    /// The query needs an order that never ties, so pages don't overlap or skip rows.
+    private static func getAll<T: Decodable>(_ table: String, query: [String: String]) async throws -> [T] {
+        let pageSize = 1000
+        var all: [T] = []
+        while true {
+            var page = query
+            page["limit"] = String(pageSize)
+            page["offset"] = String(all.count)
+            let rows: [T] = try await API.get(table, query: page)
+            all += rows
+            if rows.count < pageSize { return all }
+        }
     }
 
     func deleteWorkout(_ id: String) async {

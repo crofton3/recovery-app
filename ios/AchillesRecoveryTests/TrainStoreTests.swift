@@ -100,6 +100,23 @@ struct TrainStoreTests {
         #expect(!reopened.blocks.contains { $0.id == blank.id })
     }
 
+    /// The API returns at most 1,000 rows per request, so history has to read every page or newer workouts lose sets.
+    @Test func historyReadsEverySetPastOnePage() async throws {
+        defer { UserDefaults.standard.removeObject(forKey: "demoMode") }
+        let store = TrainStore()
+        await store.loadHistory(since: "2000-01-01")
+        let target = try #require(store.history.first { $0.setCount > 0 })
+        let before = target.setCount
+        let extra = (0..<1_050).map { n -> [String: Any] in
+            ["session_id": target.id, "exercise_id": "paging-test", "set_no": n + 1, "weight": 10, "reps": 5, "done": true,
+             "created_at": "2026-01-01T00:00:00Z"]
+        }
+        _ = DemoBackend.shared.handle(method: "POST", table: "workout_sets", query: [:], body: try JSONSerialization.data(withJSONObject: extra), prefer: nil)
+        await store.loadHistory(since: "2000-01-01")
+        let reloaded = try #require(store.history.first { $0.id == target.id })
+        #expect(reloaded.setCount == before + 1_050)
+    }
+
     @Test func progressComparesWithThePreviousSession() throws {
         func set(_ id: String, _ session: String, _ weight: Double, _ reps: Int, _ at: String) -> WorkoutSet {
             WorkoutSet(id: id, sessionId: session, exerciseId: "bench", setNo: 1, weight: weight, reps: reps, done: true, createdAt: at)
