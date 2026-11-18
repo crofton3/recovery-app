@@ -158,6 +158,61 @@ struct RunRecordTests {
         #expect(json["duration_s"] as? Int == 30)
         #expect(json["plan_run_m"] != nil)
         #expect(try API.decoder.decode(RunRecord.self, from: API.encoder.encode(run)) == run)
+        #expect(json["source"] as? String == "gps")
+    }
+
+    @Test func oldRowsWithoutASourceAreGps() throws {
+        let row = #"{"id":"a","date":"2026-11-01","started_at":"2026-11-01T07:00:00Z","duration_s":60,"distance_m":100,"run_m":100,"walk_m":0,"run_s":60,"rounds_done":0}"#
+        let run = try API.decoder.decode(RunRecord.self, from: Data(row.utf8))
+        #expect(run.source == nil)
+        #expect(!run.isTreadmill)
+    }
+}
+
+struct TreadmillTests {
+    let mile = RunPlan.metersPerMile
+
+    @Test func buildsARunFromTheTreadmillDisplay() throws {
+        var entry = TreadmillEntry(miles: "3,1", minutes: "28", seconds: "30")
+        #expect(entry.problem == nil)
+        let finished = Date(timeIntervalSince1970: 1_800_000_000)
+        let run = try #require(entry.record(finishedAt: finished, pain: 1, notes: nil))
+        #expect(run.isTreadmill)
+        #expect(run.durationS == 1710)
+        #expect(abs(run.distanceM - 3.1 * mile) < 0.001)
+        #expect(run.runS == 1710)
+        #expect(run.walkM == 0)
+        #expect(run.started == finished.addingTimeInterval(-1710))
+        #expect(run.route == [])
+        #expect(run.planRounds == nil)
+
+        // Walking comes out of the run distance and time, so run pace stays honest.
+        entry.walkMiles = "0.5"
+        entry.walkMinutes = "8.5"
+        let mixed = try #require(entry.record(finishedAt: finished, pain: nil, notes: nil))
+        #expect(abs(mixed.runM - 2.6 * mile) < 0.001)
+        #expect(mixed.runS == 1710 - 510)
+    }
+
+    @Test func refusesEntriesThatDontAddUp() {
+        #expect(TreadmillEntry(minutes: "20").problem != nil)
+        #expect(TreadmillEntry(miles: "2").problem != nil)
+        #expect(TreadmillEntry(miles: "abc", minutes: "20").problem != nil)
+        #expect(TreadmillEntry(miles: "2", minutes: "20", walkMiles: "3").problem != nil)
+        #expect(TreadmillEntry(miles: "2", minutes: "20", walkMiles: "1", walkMinutes: "25").problem != nil)
+        #expect(TreadmillEntry(miles: "2", minutes: "0", seconds: "0").problem != nil)
+        #expect(TreadmillEntry(miles: "2", minutes: "20", walkMiles: "2", walkMinutes: "20").problem == nil)
+        // Walk distance and walk time come as a pair, or walking still drags down run pace.
+        #expect(TreadmillEntry(miles: "2", minutes: "20", walkMiles: "0.5").problem != nil)
+        #expect(TreadmillEntry(miles: "2", minutes: "20", walkMinutes: "5").problem != nil)
+        // Huge numbers are refused instead of crashing when turned into seconds.
+        let huge = TreadmillEntry(miles: "2", minutes: "999999999999999999")
+        #expect(huge.durationS == nil)
+        #expect(huge.problem != nil)
+        #expect(huge.record(finishedAt: Date(), pain: nil, notes: nil) == nil)
+        let hugeWalk = TreadmillEntry(miles: "2", minutes: "20", walkMiles: "1", walkMinutes: "1e300")
+        #expect(hugeWalk.walkS == nil)
+        #expect(hugeWalk.problem != nil)
     }
 }
 
@@ -181,5 +236,15 @@ struct RunStoreTests {
         #expect(await store.route(for: saved) == [[1, 2], [3, 4]])
         await store.delete(saved)
         #expect(!store.all.contains { $0.id == run.id })
+
+        // Treadmill runs save and list the same way, keep their label, and have no route to fetch.
+        let treadmill = try #require(TreadmillEntry(miles: "2", minutes: "20").record(finishedAt: Date(), pain: 0, notes: "Incline 1%"))
+        await store.save(treadmill)
+        await store.load()
+        let listed = try #require(store.all.first { $0.id == treadmill.id })
+        #expect(listed.isTreadmill)
+        #expect(listed.notes == "Incline 1%")
+        #expect(await store.route(for: listed) == [])
+        await store.delete(listed)
     }
 }

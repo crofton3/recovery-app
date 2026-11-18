@@ -322,9 +322,15 @@ final class DemoBackend {
                 "date": day(ago), "started_at": ts(ago, hour: 7, minute: 15), "duration_s": rounds * 298,
                 "distance_m": Double(rounds) * 0.4 * mile, "run_m": Double(rounds) * 0.3 * mile, "walk_m": Double(rounds) * 0.1 * mile,
                 "run_s": rounds * 186, "plan_run_m": 0.3 * mile, "plan_walk_m": 0.1 * mile, "plan_rounds": rounds, "rounds_done": rounds,
-                "pain": pain, "segments": segments, "route": loop, "created_at": ts(ago, hour: 7, minute: 45),
+                "pain": pain, "segments": segments, "route": loop, "source": "gps", "created_at": ts(ago, hour: 7, minute: 45),
             ]])
         }
+        add("runs", [[
+            "date": day(1), "started_at": ts(1, hour: 18, minute: 5), "duration_s": 1500, "distance_m": 2.0 * mile,
+            "run_m": 1.75 * mile, "walk_m": 0.25 * mile, "run_s": 1200, "rounds_done": 0, "pain": 1,
+            "notes": "Incline 1%", "segments": [[String: Any]](), "route": [[Double]](), "source": "treadmill",
+            "created_at": ts(1, hour: 18, minute: 35),
+        ]])
 
         // Body check-ins every two weeks
         for i in 0..<8 {
