@@ -35,6 +35,13 @@ final class TrainStore {
     var session: WorkoutSession?
     var blocks: [ExerciseBlock] = []
     var errorMessage: String?
+    /// Finished workouts, newest first.
+    var history: [HistoryEntry] = []
+    var historyLoaded = false
+    /// Earliest date (yyyy-MM-dd) the history covers.
+    var historySince: String?
+    /// Shown after Finish so it is clear the workout was saved.
+    var savedNotice: String?
     /// Called whenever the workout on the lock screen may have changed. The app points this at the Live Activity.
     @ObservationIgnored var onLiveChange: ((TrainStore) -> Void)?
     @ObservationIgnored private var loadTask: Task<Void, Never>?
@@ -175,6 +182,7 @@ final class TrainStore {
             session = active
             blocks = planned
             errorMessage = nil
+            savedNotice = nil
             publishWorkout()
         } catch { errorMessage = error.localizedDescription }
     }
@@ -212,11 +220,14 @@ final class TrainStore {
         defer { finishing = false }
         do {
             try await API.patch("workout_sessions", id: session.id, SessionComplete(completedAt: ISO8601DateFormatter().string(from: Date())))
+            let done = blocks.reduce(0) { $0 + $1.sets.filter(\.done).count }
             self.session = nil
             blocks = []
             errorMessage = nil
+            savedNotice = "\(session.title) saved with \(done == 1 ? "1 set" : "\(done) sets"). Tap today on the calendar to see it."
             publishWorkout()
             Task { await NotificationPlanner.refresh() }
+            await loadHistory()
         } catch { errorMessage = error.localizedDescription }
     }
 
@@ -279,16 +290,24 @@ final class TrainStore {
         await toggleDone(exerciseId: block.id, setId: setId)
     }
 
-    // MARK: History
+    /// Parses Supabase timestamps, with or without fractional seconds.
+    nonisolated static func date(_ string: String?) -> Date? {
+        guard let string else { return nil }
+        let plain = ISO8601DateFormatter()
+        if let d = plain.date(from: string) { return d }
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return fractional.date(from: string)
+    }
 
     /// Epley estimated one-rep max for weighted sets, reps for bodyweight sets.
-    static func score(weight: Double?, reps: Int?) -> Double {
+    nonisolated static func score(weight: Double?, reps: Int?) -> Double {
         let r = Double(reps ?? 0)
         if let w = weight, w > 0 { return w * (1 + r / 30) }
         return r
     }
 
-    static func format(_ value: Double?) -> String {
+    nonisolated static func format(_ value: Double?) -> String {
         guard let v = value else { return "" }
         return v.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(v)) : String(v)
     }

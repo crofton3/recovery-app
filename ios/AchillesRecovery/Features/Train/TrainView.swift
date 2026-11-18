@@ -4,6 +4,7 @@ struct TrainView: View {
     @Environment(TrainStore.self) private var train
     @State private var mode = 0
     @State private var showPicker = false
+    @State private var openDay: CalendarDay?
 
     var body: some View {
         NavigationStack {
@@ -45,6 +46,7 @@ struct TrainView: View {
             .sheet(isPresented: $showPicker) {
                 ExercisePickerSheet { ex in Task { await train.addExercise(ex) } }
             }
+            .sheet(item: $openDay) { WorkoutDaySheet(day: $0.id) }
         }
         .task { await train.load() }
     }
@@ -69,7 +71,14 @@ struct TrainView: View {
             Button("Finish workout") { Task { await train.finish() } }
                 .buttonStyle(PrimaryButtonStyle())
         } else {
+            if let notice = train.savedNotice {
+                Label(notice, systemImage: "checkmark.circle.fill")
+                    .font(.system(size: 15, weight: .semibold)).foregroundStyle(Aurora.recovery)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .auroraCard()
+            }
             StartCard()
+            WorkoutCalendarCard(onOpen: { openDay = $0 })
         }
     }
 }

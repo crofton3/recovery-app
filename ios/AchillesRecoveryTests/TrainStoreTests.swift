@@ -35,6 +35,21 @@ struct TrainStoreTests {
         let open: [WorkoutSession] = try await API.get("workout_sessions", query: ["date": "eq.\(Day.string())", "completed_at": "is.null"])
         #expect(open.isEmpty)
 
+        // The finished workout shows up in history with the sets that were checked off. Other tests share the demo data, so find it by ID.
+        #expect(store.savedNotice?.contains("3 sets") == true)
+        let latest = try #require(store.history.first { $0.id == resumed.id })
+        #expect(latest.exercises.first?.exerciseId == legPress.id)
+        #expect(latest.exercises.count == 2)
+        #expect(latest.setCount == 3)
+        #expect(latest.duration != nil)
+        #expect(store.historySince == TrainStore.monthStart(Date()))
+
+        // Leg press beats the earlier demo sessions' best, so the day view shows it against last time.
+        let progress = await store.progress(for: latest)
+        let legProgress = try #require(progress[legPress.id])
+        #expect(legProgress.top?.weight == 190)
+        #expect(legProgress.previous != nil)
+
         // Starting from today's scheduled item builds every planned exercise with the planned sets and reps.
         let today = try #require(store.weekSchedule.first { $0.weekday == Day.weekday && !($0.plan ?? []).isEmpty })
         await store.startSession(from: today)
@@ -83,5 +98,42 @@ struct TrainStoreTests {
         await reopened.load()
         #expect(reopened.session?.id == sessionId)
         #expect(!reopened.blocks.contains { $0.id == blank.id })
+    }
+
+    /// The API returns at most 1,000 rows per request, so history has to read every page or newer workouts lose sets.
+    @Test func historyReadsEverySetPastOnePage() async throws {
+        defer { UserDefaults.standard.removeObject(forKey: "demoMode") }
+        let store = TrainStore()
+        await store.loadHistory(since: "2000-01-01")
+        let target = try #require(store.history.first { $0.setCount > 0 })
+        let before = target.setCount
+        let extra = (0..<1_050).map { n -> [String: Any] in
+            ["session_id": target.id, "exercise_id": "paging-test", "set_no": n + 1, "weight": 10, "reps": 5, "done": true,
+             "created_at": "2026-01-01T00:00:00Z"]
+        }
+        _ = DemoBackend.shared.handle(method: "POST", table: "workout_sets", query: [:], body: try JSONSerialization.data(withJSONObject: extra), prefer: nil)
+        await store.loadHistory(since: "2000-01-01")
+        let reloaded = try #require(store.history.first { $0.id == target.id })
+        #expect(reloaded.setCount == before + 1_050)
+    }
+
+    @Test func progressComparesWithThePreviousSession() throws {
+        func set(_ id: String, _ session: String, _ weight: Double, _ reps: Int, _ at: String) -> WorkoutSet {
+            WorkoutSet(id: id, sessionId: session, exerciseId: "bench", setNo: 1, weight: weight, reps: reps, done: true, createdAt: at)
+        }
+        let today = [set("t1", "now", 135, 10, "2026-11-17T22:20:00Z"), set("t2", "now", 155, 8, "2026-11-17T22:25:00Z")]
+        let older = [set("o1", "old", 160, 8, "2026-11-01T22:00:00Z")]
+        let last = [set("l1", "last", 145, 8, "2026-11-10T22:00:00Z")]
+        let later = [set("n1", "next", 300, 8, "2026-11-20T22:00:00Z")]
+        let history = (later + today + last + older).sorted { ($0.createdAt ?? "") > ($1.createdAt ?? "") }
+
+        let p = TrainStore.progress(today, history: history, sessionId: "now", before: "2026-11-17T22:20:00Z")
+        #expect(p.top?.id == "t2")
+        #expect(p.previous?.id == "l1")
+        // 155 x 8 beats last week but not the 160 x 8 before that, and the later session does not count.
+        #expect(!p.isPR)
+        let change = WorkoutFormat.change(try #require(p.top), vs: try #require(p.previous), unit: "lb")
+        #expect(change.text == "+10 lb vs last time")
+        #expect(change.up == true)
     }
 }

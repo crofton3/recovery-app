@@ -112,6 +112,14 @@ final class RunStore {
         loaded = true
     }
 
+    /// Adds every run on or after `day` (yyyy-MM-dd), for the calendar. Keeps runs already loaded.
+    func loadRuns(since day: String) async {
+        guard let rows: [RunRecord] = try? await API.get("runs", query: [
+            "select": Self.listColumns, "date": "gte.\(day)", "order": "started_at.desc", "limit": "500",
+        ]) else { return }
+        runs = (runs.filter { r in !rows.contains { $0.id == r.id } } + rows).sorted { $0.startedAt > $1.startedAt }
+    }
+
     /// Saves a run. It is written to the phone first, so it survives the app being closed mid-upload,
     /// and is sent again the next time the app loads runs if the network is down.
     func save(_ run: RunRecord) async {
