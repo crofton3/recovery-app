@@ -35,10 +35,9 @@ struct TrainStoreTests {
         let open: [WorkoutSession] = try await API.get("workout_sessions", query: ["date": "eq.\(Day.string())", "completed_at": "is.null"])
         #expect(open.isEmpty)
 
-        // The finished workout shows up first in history with the sets that were checked off.
+        // The finished workout shows up in history with the sets that were checked off. Other tests share the demo data, so find it by ID.
         #expect(store.savedNotice?.contains("3 sets") == true)
-        let latest = try #require(store.history.first)
-        #expect(latest.id == resumed.id)
+        let latest = try #require(store.history.first { $0.id == resumed.id })
         #expect(latest.exercises.first?.exerciseId == legPress.id)
         #expect(latest.exercises.count == 2)
         #expect(latest.setCount == 3)
